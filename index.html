@@ -304,7 +304,7 @@
             </div>
 
             <!-- 單檔進度條與預估剩餘時間 -->
-            <div class="space-y-1 mb-5 sm:mb-6">
+            <div class="space-y-1 mb-2">
                 <div class="flex justify-between text-[10px] sm:text-xs text-sub-ink font-sans">
                     <span id="progress-percentage">0%</span>
                     <span id="transfer-speed">計算中...</span>
@@ -316,8 +316,16 @@
                 </div>
             </div>
 
+            <!-- 暫停/繼續控制列 (僅發送端可見) -->
+            <div id="transfer-controls" class="hidden flex justify-end items-center mt-2 border-t border-[#E6E2D8] pt-3 mb-4">
+                <button id="btn-pause-resume" onclick="togglePause()" class="px-3 py-1.5 bg-white border border-[#E6E2D8] text-[10px] sm:text-xs font-bold text-sub-ink hover:text-ink rounded-sm tracking-widest flex items-center gap-1 transition-colors shadow-sm">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>暫停傳輸</span>
+                </button>
+            </div>
+
             <!-- 和風多文卷佇列清單 -->
-            <div class="border-t border-[#E6E2D8] pt-4">
+            <div class="border-t border-[#E6E2D8] pt-4 mt-2">
                 <p class="text-[11px] sm:text-xs font-bold text-ink mb-2 tracking-widest flex items-center gap-1">
                     <span>🗂️ 文卷傳輸佇列</span>
                 </p>
@@ -387,6 +395,10 @@
         let receivedSize = 0;     // 接收端當前已接收大小
         let fileMetadata = null;  // 接收端當前檔案 metadata
         
+        // --- Pause & Resume Metrics ---
+        let isPaused = false;     // 發送端暫停狀態
+        let currentOffset = 0;    // 發送端當前斷點位移量
+        
         // --- Speed & ETA Metrics ---
         let transferStartTime = 0;
         let lastReportTime = 0;
@@ -401,17 +413,13 @@
         // --- On Page Load: 偵測 URL Hash 自動連線 ---
         window.addEventListener('DOMContentLoaded', () => {
             const hash = window.location.hash.substring(1).trim().toUpperCase();
-            // 如果 URL 後方帶有 6 碼配對碼，直接啟動接收模式並連線
             if (hash && hash.length === 6) {
                 setTimeout(() => {
                     initReceiver();
                     document.getElementById('input-peer-id').value = hash;
-                    // 微調延遲，確保 PeerJS 初始化就緒後自動呼叫連線
                     setTimeout(connectToPeer, 1500);
                 }, 500);
             }
-            
-            // 初始化 Drag & Drop 監聽
             setupDragAndDrop();
         });
 
@@ -462,14 +470,14 @@
             const memoContent = document.getElementById('tab-content-memo');
 
             if (tabName === 'file') {
-                fileBtn.className = "flex-1 py-2 text-sm font-bold tracking-widest border-matcha text-matcha border-b-2 transition-all duration-200";
-                memoBtn.className = "flex-1 py-2 text-sm font-bold tracking-widest border-transparent text-sub-ink hover:text-ink border-b-2 transition-all duration-200";
+                fileBtn.className = "flex-1 py-2 text-xs sm:text-sm font-bold tracking-widest border-matcha text-matcha border-b-2 transition-all duration-200";
+                memoBtn.className = "flex-1 py-2 text-xs sm:text-sm font-bold tracking-widest border-transparent text-sub-ink hover:text-ink border-b-2 transition-all duration-200";
                 fileContent.classList.remove('hidden');
                 fileContent.classList.add('flex');
                 memoContent.classList.add('hidden');
             } else {
-                memoBtn.className = "flex-1 py-2 text-sm font-bold tracking-widest border-matcha text-matcha border-b-2 transition-all duration-200";
-                fileBtn.className = "flex-1 py-2 text-sm font-bold tracking-widest border-transparent text-sub-ink hover:text-ink border-b-2 transition-all duration-200";
+                memoBtn.className = "flex-1 py-2 text-xs sm:text-sm font-bold tracking-widest border-matcha text-matcha border-b-2 transition-all duration-200";
+                fileBtn.className = "flex-1 py-2 text-xs sm:text-sm font-bold tracking-widest border-transparent text-sub-ink hover:text-ink border-b-2 transition-all duration-200";
                 memoContent.classList.remove('hidden');
                 memoContent.classList.add('flex');
                 fileContent.classList.add('hidden');
@@ -501,13 +509,13 @@
 
         // --- Core: Initialize PeerJS ---
         function initPeer(onOpenCallback) {
-            updateStatus('連接伺服器中...', '#D2A042'); // Yamabuki (Yellow/Gold)
+            updateStatus('連接伺服器中...', '#D2A042'); 
             myId = Math.random().toString(36).substring(2, 8).toUpperCase();
             
             peer = new Peer(myId, { debug: 1 });
 
             peer.on('open', (id) => {
-                updateStatus('上線就緒', '#6B775A'); // Matcha
+                updateStatus('上線就緒', '#6B775A'); 
                 if (onOpenCallback) onOpenCallback(id);
             });
 
@@ -519,7 +527,7 @@
 
             peer.on('error', (err) => {
                 alert('連線中斷: ' + err.type);
-                updateStatus('連線中斷', '#B5494B'); // Hi (Red)
+                updateStatus('連線中斷', '#B5494B'); 
                 resetApp();
             });
         }
@@ -530,16 +538,14 @@
             showView('view-sender-waiting');
             initPeer((id) => {
                 document.getElementById('display-peer-id').innerText = id;
-                
-                // 動態組裝包含 hash 配對的完整連結
                 const autoConnectUrl = window.location.href.split('#')[0] + '#' + id;
                 
                 if (!qrcodeObj) {
                     qrcodeObj = new QRCode(document.getElementById("qrcode"), {
-                        text: autoConnectUrl, // 現在二維碼內含自動連線 URL
+                        text: autoConnectUrl,
                         width: 192,
                         height: 192,
-                        colorDark : "#2D2A26", // 墨色
+                        colorDark : "#2D2A26", 
                         colorLight : "#ffffff",
                         correctLevel : QRCode.CorrectLevel.M
                     });
@@ -565,16 +571,11 @@
 
         function onScanSuccess(decodedText, decodedResult) {
             let targetId = decodedText.trim().toUpperCase();
-            
-            // 如果掃到的是包含 Hash 的網址，自動解析並提取最後 6 碼
             if (decodedText.includes('#')) {
                 targetId = decodedText.split('#').pop().trim().toUpperCase();
             }
-
             document.getElementById('input-peer-id').value = targetId;
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.pause();
-            }
+            if (html5QrcodeScanner) html5QrcodeScanner.pause();
             connectToPeer();
         }
 
@@ -594,40 +595,60 @@
 
             updateStatus('建立連線中...', '#D2A042');
             conn = peer.connect(targetId, { reliable: true });
-
             setupConnectionListeners();
         }
 
         // --- Connection Setup ---
         function setupConnectionListeners() {
             conn.on('open', () => {
-                updateStatus('結緣連線成功', '#30415D'); // Ai (Blue)
+                updateStatus('結緣連線成功', '#30415D'); 
                 
-                clearTransferData();
+                // 為了支援斷線重連，連線成功後若尚未斷線續傳則不重置狀態
+                if (role === 'sender') {
+                    // Sender normally waits for drag drop unless resuming
+                    document.getElementById('connected-partner-text').innerText = '與接收方建立安全連結';
+                } else {
+                    document.getElementById('connected-partner-text').innerText = '與發送方建立安全連結';
+                }
+                
+                if (role === 'sender' && fileQueue.length > 0) {
+                    // 如果 Sender 重連時佇列還有檔案，重新發出 batch_start 讓 Receiver 比對
+                    const queueMetadata = fileQueue.map(f => ({ name: f.name, size: f.size, mime: f.type }));
+                    conn.send({ type: 'batch_start', files: queueMetadata });
+                } else if (fileQueue.length === 0) {
+                    clearTransferData();
+                }
+                
                 showConnectedView();
             });
 
             conn.on('data', handleIncomingData);
 
             conn.on('close', () => {
-                if(role === 'receiver' && receivedFilesList.length === 0 && receivedSize > 0) {
-                    alert('傳輸中斷！');
+                // [修改] 如果是接收端，且正在傳輸檔案中斷線，保留緩衝區並等待重新連線，不全面重置
+                if(role === 'receiver' && receivedFilesList.length === 0 && receivedSize > 0 && receivedSize < (fileMetadata ? fileMetadata.size : 0)) {
+                    updateStatus('等待發送方重新連線...', '#B5494B');
+                    document.getElementById('transfer-speed').innerText = '連線中斷';
+                    document.getElementById('transfer-eta').innerText = '等待續傳...';
+                    
+                    const icon = `<svg class="w-4 h-4 sm:w-5 sm:h-5 text-sub-ink" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+                    document.getElementById('transfer-title').innerHTML = `${icon} 連線中斷，等待續傳 (${currentFileIndex + 1}/${fileQueue.length})`;
+                    conn = null; // 釋放失效連線，等 Sender 再連入
+                } else {
+                    resetApp();
                 }
-                resetApp();
             });
         }
         
         function showConnectedView() {
             showView('view-connected');
-            switchConnectedTab('file'); // 預設打開傳檔分頁
+            switchConnectedTab('file'); 
             
             if (role === 'sender') {
-                document.getElementById('connected-partner-text').innerText = '與接收方建立安全連結';
                 document.getElementById('sender-file-select').classList.remove('hidden');
                 document.getElementById('sender-file-select').classList.add('flex');
                 document.getElementById('receiver-waiting').classList.add('hidden');
             } else {
-                document.getElementById('connected-partner-text').innerText = '與發送方建立安全連結';
                 document.getElementById('receiver-waiting').classList.remove('hidden');
                 document.getElementById('receiver-waiting').classList.add('flex');
                 document.getElementById('sender-file-select').classList.add('hidden');
@@ -676,43 +697,35 @@
         function handleFileSelection(files) {
             if (files.length === 0) return;
             
-            // 將 FileList 轉換為標準陣列存入佇列
             fileQueue = Array.from(files);
             currentFileIndex = 0;
+            isPaused = false;
             
-            // 送出佇列中所有文卷的 metadata 給接收端
             const queueMetadata = fileQueue.map(f => ({
-                name: f.name,
-                size: f.size,
-                mime: f.type
+                name: f.name, size: f.size, mime: f.type
             }));
 
-            conn.send({
-                type: 'batch_start',
-                files: queueMetadata
-            });
-
-            // 開始傳送佇列中第一個檔案
+            conn.send({ type: 'batch_start', files: queueMetadata });
             startFileTransmission(0);
         }
 
         function startFileTransmission(index) {
             currentFileIndex = index;
             fileToSend = fileQueue[index];
+            currentOffset = 0;
+            isPaused = false;
             
-            // 更新傳輸介面
             showView('view-transferring');
-            document.getElementById('transfer-title').innerHTML = `傳輸進行中 (${currentFileIndex + 1}/${fileQueue.length})`;
-            document.getElementById('file-name-display').innerText = fileToSend.name;
-            document.getElementById('file-size-display').innerText = formatBytes(fileToSend.size);
-            document.getElementById('file-index-indicator').innerText = `文卷 ${currentFileIndex + 1}/${fileQueue.length}`;
-            document.getElementById('transfer-progress').value = 0;
-            document.getElementById('progress-percentage').innerText = '0%';
-            document.getElementById('transfer-eta').innerText = '剩餘時間：預估中...';
+            
+            // 顯示暫停按鈕
+            if (role === 'sender') {
+                const controls = document.getElementById('transfer-controls');
+                controls.classList.remove('hidden');
+            }
             
             renderQueueList();
 
-            // 觸發此檔案的個別 Metadata
+            // 觸發此檔案的 Metadata 並等待接收方回應 (準備好或要求斷點續傳)
             conn.send({
                 type: 'file_metadata',
                 name: fileToSend.name,
@@ -720,34 +733,63 @@
                 mime: fileToSend.type,
                 index: currentFileIndex
             });
-
-            transferStartTime = Date.now();
-            lastReportTime = Date.now();
-            lastReportedSize = 0;
             
-            // 開始分段發送
-            sendNextChunk(0);
+            // 這裡不再直接呼叫 sendNextChunk，改為等待接收端的 request_resume 指令
+        }
+
+        // --- Pause & Resume Logic (發送端) ---
+        function togglePause() {
+            if (role !== 'sender') return;
+            isPaused = !isPaused;
+            const btn = document.getElementById('btn-pause-resume');
+            const span = btn.querySelector('span');
+
+            if (isPaused) {
+                // 切換至「繼續傳輸」狀態
+                span.innerText = '繼續傳輸';
+                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>繼續傳輸</span>`;
+                btn.classList.add('text-matcha', 'border-matcha', 'bg-[#F4F0EA]');
+                btn.classList.remove('text-sub-ink', 'border-[#E6E2D8]', 'bg-white');
+                
+                document.getElementById('transfer-speed').innerText = '已暫停';
+                document.getElementById('transfer-eta').innerText = '暫停中';
+                updateStatus('傳輸已暫停', '#D2A042');
+                
+                if (conn) conn.send({ type: 'transfer_paused' });
+            } else {
+                // 切換回「暫停傳輸」狀態
+                span.innerText = '暫停傳輸';
+                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>暫停傳輸</span>`;
+                btn.classList.remove('text-matcha', 'border-matcha', 'bg-[#F4F0EA]');
+                btn.classList.add('text-sub-ink', 'border-[#E6E2D8]', 'bg-white');
+                
+                lastReportTime = Date.now();
+                lastReportedSize = currentOffset;
+                updateStatus('傳輸進行中', '#6B775A');
+                
+                if (conn) conn.send({ type: 'transfer_resumed' });
+                sendNextChunk(currentOffset);
+            }
         }
 
         function sendNextChunk(offset) {
-            // 單一檔案傳送完畢
+            currentOffset = offset;
+            
+            if (isPaused) {
+                return; // 如果處於暫停狀態，跳出迴圈
+            }
+            
             if (offset >= fileToSend.size) {
                 conn.send({ type: 'file_eof', index: currentFileIndex });
-                
-                // 檢查是否還有下一個檔案
                 if (currentFileIndex + 1 < fileQueue.length) {
-                    setTimeout(() => {
-                        startFileTransmission(currentFileIndex + 1);
-                    }, 100); 
+                    setTimeout(() => { startFileTransmission(currentFileIndex + 1); }, 100); 
                 } else {
-                    // 全部佇列傳送完畢
                     conn.send({ type: 'batch_eof' });
                     showSuccess(`所有文卷已成功送出！(共 ${fileQueue.length} 個)`);
                 }
                 return;
             }
 
-            // WebRTC 背壓流量限制（緩衝上限控制在 1MB）
             if (conn.dataChannel.bufferedAmount > 16384 * 64) { 
                 setTimeout(() => sendNextChunk(offset), 20);
                 return;
@@ -762,35 +804,23 @@
             });
         }
 
-        // --- Sender/Receiver Text Memo Sharing (雙向便箋傳送) ---
+        // --- Sender/Receiver Text Memo Sharing ---
         function sendTextMemo() {
             const textarea = document.getElementById('memo-input');
             const text = textarea.value.trim();
             if (!text) return;
 
-            // 送出文字資料
-            conn.send({
-                type: 'text_memo',
-                text: text,
-                sender: '發送端'
-            });
-
+            conn.send({ type: 'text_memo', text: text, sender: '發送端' });
             addMemoToBoard('自著便箋 (您)', text);
             textarea.value = '';
         }
 
         function addMemoToBoard(senderName, text) {
             const board = document.getElementById('memo-board');
-            
-            // 清理空狀態提示
-            if (board.querySelector('p.italic')) {
-                board.innerHTML = '';
-            }
+            if (board.querySelector('p.italic')) board.innerHTML = '';
 
             const memoItem = document.createElement('div');
             memoItem.className = "p-3 bg-[#F3EFE7] border border-[#E6E2D8] text-xs rounded-sm shadow-sm space-y-1.5 text-left font-sans";
-            
-            // 轉義 HTML 防止 XSS 注入
             const escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             
             memoItem.innerHTML = `
@@ -803,34 +833,25 @@
                 <p class="whitespace-pre-wrap select-all text-ink break-words leading-relaxed">${escapedText}</p>
             `;
 
-            // 高相容性剪貼簿複製機制 (相容 iframe 內嵌環境)
             memoItem.querySelector('.btn-copy').addEventListener('click', function(e) {
                 const btn = e.target;
                 const originalText = btn.innerText;
-
-                // 建立虛擬 Textarea 避免權限被拒
                 const textarea = document.createElement('textarea');
                 textarea.value = text;
                 textarea.style.position = 'fixed';
                 textarea.style.opacity = '0';
                 document.body.appendChild(textarea);
                 textarea.select();
-                
                 try {
-                    const success = document.execCommand('copy');
-                    if (success) {
+                    if (document.execCommand('copy')) {
                         btn.innerText = '已複製';
                         btn.classList.add('text-matcha', 'border-matcha');
                         setTimeout(() => {
                             btn.innerText = originalText;
                             btn.classList.remove('text-matcha', 'border-matcha');
                         }, 1500);
-                    } else {
-                        throw new Error('Fallback failed');
                     }
-                } catch (err) {
-                    console.error("Copying failed:", err);
-                } finally {
+                } catch (err) {} finally {
                     document.body.removeChild(textarea);
                 }
             });
@@ -840,48 +861,84 @@
 
         // --- Receiver Logic: Assembly & Auto Sequential Processing ---
         function handleIncomingData(data) {
-            // 新增: 便箋資料處理
+            // [發送端邏輯] 接收端的斷點續傳請求
+            if (role === 'sender' && data.type === 'request_resume') {
+                currentOffset = data.offset;
+                transferStartTime = Date.now();
+                lastReportTime = Date.now();
+                lastReportedSize = data.offset;
+                updateProgressUI(currentOffset, fileToSend.size);
+                sendNextChunk(currentOffset);
+                return;
+            }
+
             if (data.type === 'text_memo') {
                 addMemoToBoard('他處寄來 (對方)', data.text);
-                
-                // 便箋收到時，如果當前切在檔案頁面，對按鈕發出微光震動提示
                 const memoTabBtn = document.getElementById('tab-btn-memo');
                 if (memoTabBtn.classList.contains('text-sub-ink')) {
                     memoTabBtn.classList.add('animate-bounce', 'text-matcha');
-                    setTimeout(() => {
-                        memoTabBtn.classList.remove('animate-bounce');
-                    }, 2000);
+                    setTimeout(() => memoTabBtn.classList.remove('animate-bounce'), 2000);
                 }
                 return;
             }
 
+            // [同步暫停UI顯示]
+            if (data.type === 'transfer_paused') {
+                document.getElementById('transfer-speed').innerText = '發送方已暫停';
+                document.getElementById('transfer-eta').innerText = '暫停中';
+                const icon = `<svg class="w-4 h-4 sm:w-5 sm:h-5 text-sub-ink" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                document.getElementById('transfer-title').innerHTML = `${icon} 傳輸暫停 (${currentFileIndex + 1}/${fileQueue.length})`;
+                return;
+            } else if (data.type === 'transfer_resumed') {
+                lastReportTime = Date.now();
+                lastReportedSize = receivedSize;
+                const icon = `<svg class="w-4 h-4 sm:w-5 sm:h-5 animate-bounce text-matcha" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>`;
+                document.getElementById('transfer-title').innerHTML = `${icon} 傳輸進行中 (${currentFileIndex + 1}/${fileQueue.length})`;
+                return;
+            }
+
             if (data.type === 'batch_start') {
+                // 若正在斷線續傳中，且傳來的文卷與中斷的文卷相符，則保留緩衝區
+                const firstFile = data.files[0];
+                const isResuming = receiveBuffer.length > 0 && fileMetadata && firstFile && firstFile.name === fileMetadata.name && firstFile.size === fileMetadata.size;
+
+                if (!isResuming) {
+                    receivedFilesList = []; 
+                }
+
                 fileQueue = data.files;
                 currentFileIndex = 0;
-                receivedFilesList = []; // 重置完成列表
-                
                 document.getElementById('download-action-container').classList.add('hidden');
                 showView('view-transferring');
                 
             } else if (data.type === 'file_metadata') {
-                fileMetadata = data;
-                receiveBuffer = [];
-                receivedSize = 0;
-                currentFileIndex = data.index;
+                const isResuming = fileMetadata && receiveBuffer.length > 0 && fileMetadata.name === data.name && fileMetadata.size === data.size;
+                const icon = `<svg class="w-4 h-4 sm:w-5 sm:h-5 animate-bounce text-matcha" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>`;
 
-                document.getElementById('transfer-title').innerHTML = `傳輸進行中 (${currentFileIndex + 1}/${fileQueue.length})`;
-                document.getElementById('file-name-display').innerText = fileMetadata.name;
-                document.getElementById('file-size-display').innerText = formatBytes(fileMetadata.size);
-                document.getElementById('file-index-indicator').innerText = `文卷 ${currentFileIndex + 1}/${fileQueue.length}`;
-                document.getElementById('transfer-progress').value = 0;
-                document.getElementById('progress-percentage').innerText = '0%';
-                document.getElementById('transfer-eta').innerText = '剩餘時間：預估中...';
+                if (isResuming) {
+                    // [斷點續傳分支] 向發送端請求從斷點位移發送
+                    currentFileIndex = data.index;
+                    document.getElementById('transfer-title').innerHTML = `${icon} 續傳進行中 (${currentFileIndex + 1}/${fileQueue.length})`;
+                    renderQueueList();
+                    conn.send({ type: 'request_resume', offset: receivedSize });
+                } else {
+                    // [全新傳輸分支] 請求從 0 開始
+                    fileMetadata = data;
+                    receiveBuffer = [];
+                    receivedSize = 0;
+                    currentFileIndex = data.index;
 
-                renderQueueList();
+                    document.getElementById('transfer-title').innerHTML = `${icon} 傳輸進行中 (${currentFileIndex + 1}/${fileQueue.length})`;
+                    document.getElementById('file-name-display').innerText = fileMetadata.name;
+                    document.getElementById('file-size-display').innerText = formatBytes(fileMetadata.size);
+                    document.getElementById('file-index-indicator').innerText = `文卷 ${currentFileIndex + 1}/${fileQueue.length}`;
+                    document.getElementById('transfer-progress').value = 0;
+                    document.getElementById('progress-percentage').innerText = '0%';
+                    document.getElementById('transfer-eta').innerText = '剩餘時間：預估中...';
 
-                transferStartTime = Date.now();
-                lastReportTime = Date.now();
-                lastReportedSize = 0;
+                    renderQueueList();
+                    conn.send({ type: 'request_resume', offset: 0 }); 
+                }
 
             } else if (data.type === 'chunk') {
                 receiveBuffer.push(data.data);
@@ -892,11 +949,7 @@
                 const blob = new Blob(receiveBuffer, { type: fileMetadata.mime });
                 const blobUrl = URL.createObjectURL(blob);
                 
-                receivedFilesList.push({
-                    name: fileMetadata.name,
-                    url: blobUrl,
-                    blob: blob
-                });
+                receivedFilesList.push({ name: fileMetadata.name, url: blobUrl, blob: blob });
 
                 if (fileQueue.length === 1) {
                     triggerDownload(blobUrl, fileMetadata.name);
@@ -904,10 +957,7 @@
 
             } else if (data.type === 'batch_eof') {
                 showSuccess(`文卷傳輸完成！(共 ${fileQueue.length} 個)`);
-                
-                const actionContainer = document.getElementById('download-action-container');
-                actionContainer.classList.remove('hidden');
-                
+                document.getElementById('download-action-container').classList.remove('hidden');
                 renderSuccessFilesList();
             }
         }
@@ -938,44 +988,31 @@
             }
 
             document.getElementById('btn-download-all').onclick = () => {
-                receivedFilesList.forEach(file => {
-                    triggerDownload(file.url, file.name);
-                });
+                receivedFilesList.forEach(file => { triggerDownload(file.url, file.name); });
             };
         }
 
-        // 本地端 JSZip 壓縮包裝實作
         async function handleZipDownload() {
             if (receivedFilesList.length === 0) return;
-            
             const zipBtn = document.getElementById('btn-download-zip');
             const originalContent = zipBtn.innerHTML;
             
             zipBtn.disabled = true;
             zipBtn.innerHTML = `
-                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 <span>正在壓縮打包中...</span>
             `;
 
             try {
                 const zip = new JSZip();
-                
-                receivedFilesList.forEach(file => {
-                    zip.file(file.name, file.blob);
-                });
-                
+                receivedFilesList.forEach(file => { zip.file(file.name, file.blob); });
                 const zipBlob = await zip.generateAsync({ type: "blob" });
                 const zipUrl = URL.createObjectURL(zipBlob);
                 
                 const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
                 triggerDownload(zipUrl, `DropShare_文卷_${todayStr}.zip`);
-                
                 setTimeout(() => URL.revokeObjectURL(zipUrl), 10000);
             } catch (error) {
-                console.error("ZIP packaging failed:", error);
                 alert("文卷壓縮打包失敗，請使用下方個別儲存。");
             } finally {
                 zipBtn.disabled = false;
@@ -983,7 +1020,6 @@
             }
         }
 
-        // 觸發下載的標準實作
         function triggerDownload(url, name) {
             const a = document.createElement('a');
             a.href = url;
@@ -993,7 +1029,7 @@
             document.body.removeChild(a);
         }
 
-        // --- Common Logic: Progress UI Update (含時雨估算 ETA) ---
+        // --- Common Logic: Progress UI Update ---
         function updateProgressUI(current, total) {
             const percent = ((current / total) * 100).toFixed(1);
             document.getElementById('transfer-progress').value = percent;
@@ -1007,11 +1043,9 @@
                 
                 document.getElementById('transfer-speed').innerText = `${formatBytes(speedBytesPerSec)}/s`;
                 
-                // === 進階 ETA 時間預估演算法 ===
-                if (speedBytesPerSec > 0) {
+                if (speedBytesPerSec > 0 && !isPaused) {
                     const remainingBytes = total - current;
                     const etaSeconds = Math.ceil(remainingBytes / speedBytesPerSec);
-                    
                     if (etaSeconds < 60) {
                         document.getElementById('transfer-eta').innerText = `剩餘時間：約需 ${etaSeconds} 秒`;
                     } else {
@@ -1019,6 +1053,8 @@
                         const secs = etaSeconds % 60;
                         document.getElementById('transfer-eta').innerText = `剩餘時間：約需 ${mins} 分 ${secs} 秒`;
                     }
+                } else if(isPaused) {
+                    document.getElementById('transfer-eta').innerText = '暫停中';
                 } else {
                     document.getElementById('transfer-eta').innerText = '剩餘時間：預估中...';
                 }
@@ -1031,10 +1067,10 @@
         function showSuccess(msg) {
             showView('view-success');
             document.getElementById('success-message').innerText = msg;
-            updateStatus('傳輸完成', '#6B775A'); // Matcha
+            updateStatus('傳輸完成', '#6B775A'); 
+            document.getElementById('transfer-controls').classList.add('hidden'); // 隱藏按鈕
         }
 
-        // --- Continue Transfer (Keep connection alive) ---
         function continueTransfer() {
             clearTransferData();
             showConnectedView();
@@ -1048,15 +1084,25 @@
             receivedSize = 0;
             fileMetadata = null;
             receivedFilesList = [];
+            isPaused = false;
+            currentOffset = 0;
             
             document.getElementById('transfer-progress').value = 0;
             document.getElementById('progress-percentage').innerText = '0%';
             document.getElementById('transfer-eta').innerText = '剩餘時間：預估中...';
             document.getElementById('download-action-container').classList.add('hidden');
-            document.getElementById('file-upload').value = ''; // 允許重複選取相同檔案
+            document.getElementById('file-upload').value = ''; 
+            document.getElementById('transfer-controls').classList.add('hidden');
+            
+            // 重置暫停按鈕 UI
+            const btn = document.getElementById('btn-pause-resume');
+            if(btn) {
+                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>暫停傳輸</span>`;
+                btn.classList.remove('text-matcha', 'border-matcha', 'bg-[#F4F0EA]');
+                btn.classList.add('text-sub-ink', 'border-[#E6E2D8]', 'bg-white');
+            }
         }
 
-        // --- Common Logic: Reset App (Disconnect) ---
         function resetApp() {
             if (conn) {
                 conn.close();
@@ -1074,14 +1120,13 @@
             role = '';
             clearTransferData();
             document.getElementById('input-peer-id').value = '';
-            document.getElementById('memo-board').innerHTML = '<p class="text-xs text-center text-sub-ink py-4 italic">尚無收到任何便箋</p>';
+            document.getElementById('memo-board').innerHTML = '<p class="text-[11px] sm:text-xs text-center text-sub-ink py-4 italic">尚無收到任何便箋</p>';
             
-            // 清理網址中的配對 hash
             if (window.location.hash) {
                 history.replaceState(null, document.title, window.location.pathname + window.location.search);
             }
 
-            updateStatus('系統待命', '#A39F98'); // Offline Gray
+            updateStatus('系統待命', '#A39F98'); 
             showView('view-home');
         }
     </script>
