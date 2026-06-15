@@ -131,20 +131,20 @@
 <body class="min-h-screen flex flex-col selection:bg-[#6B775A]/30">
 
     <!-- Header -->
-    <header class="w-full max-w-5xl mx-auto px-4 py-6 flex justify-between items-center z-10 border-b border-[#E6E2D8]">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded bg-ai flex items-center justify-center shadow-sm">
-                <svg class="w-6 h-6 text-[#F3EFE7]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    <header class="w-full max-w-5xl mx-auto px-4 py-4 md:py-6 flex justify-between items-center z-10 border-b border-[#E6E2D8]">
+        <div class="flex items-center gap-2 md:gap-3">
+            <div class="w-8 h-8 md:w-10 md:h-10 rounded bg-ai flex items-center justify-center shadow-sm">
+                <svg class="w-5 h-5 md:w-6 md:h-6 text-[#F3EFE7]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
             </div>
             <div>
-                <h1 class="text-xl font-bold tracking-widest text-ink">結緣傳檔</h1>
-                <p class="text-[11px] text-sub-ink font-medium tracking-widest">P2P 點對點極速傳輸</p>
+                <h1 class="text-lg md:text-xl font-bold tracking-widest text-ink">結緣傳檔</h1>
+                <p class="text-[10px] md:text-[11px] text-sub-ink font-medium tracking-widest">P2P 點對點極速傳輸</p>
             </div>
         </div>
-        <div class="text-xs bg-white px-3 py-1.5 rounded-sm border border-[#E6E2D8] flex items-center gap-2 shadow-sm">
-            <span id="status-indicator" class="w-2 h-2 rounded-full bg-[#A39F98]"></span>
+        <div class="text-[10px] md:text-xs bg-white px-2 py-1.5 md:px-3 rounded-sm border border-[#E6E2D8] flex items-center gap-1.5 md:gap-2 shadow-sm">
+            <span id="status-indicator" class="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#A39F98]"></span>
             <span id="status-text" class="text-sub-ink font-medium">系統待命</span>
         </div>
     </header>
@@ -153,86 +153,86 @@
     <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-5xl mx-auto relative z-10">
         
         <!-- ================= VIEW 1: HOME (Role Selection) ================= -->
-        <div id="view-home" class="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-300">
+        <div id="view-home" class="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 transition-all duration-300">
             <!-- Send Button -->
-            <button onclick="initSender()" class="group relative flex flex-col items-center justify-center p-10 washi-panel hover:bg-[#F4F0EA] transition-all duration-300 border border-[#E6E2D8] hover:border-[#30415D] active:scale-[0.98] overflow-hidden">
-                <div class="w-20 h-20 rounded bg-ai/10 flex items-center justify-center mb-6 group-hover:bg-ai/20 transition-colors duration-300">
-                    <svg class="w-10 h-10 text-ai" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <button onclick="initSender()" class="group relative flex flex-col items-center justify-center p-8 sm:p-10 washi-panel hover:bg-[#F4F0EA] transition-all duration-300 border border-[#E6E2D8] hover:border-[#30415D] active:scale-[0.98] overflow-hidden">
+                <div class="w-16 h-16 sm:w-20 sm:h-20 rounded bg-ai/10 flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-ai/20 transition-colors duration-300">
+                    <svg class="w-8 h-8 sm:w-10 sm:h-10 text-ai" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 19.5v-15m0 0l-6.75 6.75M12 4.5l6.75 6.75" />
                     </svg>
                 </div>
-                <h2 class="text-2xl font-bold text-ink mb-2 tracking-widest">發送文卷</h2>
-                <p class="text-sm text-sub-ink">產生二維碼供對方掃描</p>
+                <h2 class="text-xl sm:text-2xl font-bold text-ink mb-1 sm:mb-2 tracking-widest">發送文卷</h2>
+                <p class="text-xs sm:text-sm text-sub-ink">產生二維碼供對方掃描</p>
             </button>
 
             <!-- Receive Button -->
-            <button onclick="initReceiver()" class="group relative flex flex-col items-center justify-center p-10 washi-panel hover:bg-[#F4F0EA] transition-all duration-300 border border-[#E6E2D8] hover:border-[#6B775A] active:scale-[0.98] overflow-hidden">
-                <div class="w-20 h-20 rounded bg-matcha/10 flex items-center justify-center mb-6 group-hover:bg-matcha/20 transition-colors duration-300">
-                    <svg class="w-10 h-10 text-matcha" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <button onclick="initReceiver()" class="group relative flex flex-col items-center justify-center p-8 sm:p-10 washi-panel hover:bg-[#F4F0EA] transition-all duration-300 border border-[#E6E2D8] hover:border-[#6B775A] active:scale-[0.98] overflow-hidden">
+                <div class="w-16 h-16 sm:w-20 sm:h-20 rounded bg-matcha/10 flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-matcha/20 transition-colors duration-300">
+                    <svg class="w-8 h-8 sm:w-10 sm:h-10 text-matcha" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
                     </svg>
                 </div>
-                <h2 class="text-2xl font-bold text-ink mb-2 tracking-widest">接收文卷</h2>
-                <p class="text-sm text-sub-ink">掃描條碼或輸入配對碼</p>
+                <h2 class="text-xl sm:text-2xl font-bold text-ink mb-1 sm:mb-2 tracking-widest">接收文卷</h2>
+                <p class="text-xs sm:text-sm text-sub-ink">掃描條碼或輸入配對碼</p>
             </button>
         </div>
 
         <!-- ================= VIEW 2: SENDER WAITING ================= -->
-        <div id="view-sender-waiting" class="hidden w-full max-w-md flex-col items-center washi-panel p-8 text-center">
-            <h2 class="text-xl font-bold mb-2 tracking-widest text-ink">等待對方連接...</h2>
-            <p class="text-xs text-sub-ink mb-8">請接收方選擇「接收文卷」並掃描下方條碼</p>
+        <div id="view-sender-waiting" class="hidden w-full max-w-md flex-col items-center washi-panel p-6 sm:p-8 text-center">
+            <h2 class="text-lg sm:text-xl font-bold mb-2 tracking-widest text-ink">等待對方連接...</h2>
+            <p class="text-[11px] sm:text-xs text-sub-ink mb-6 sm:mb-8">請接收方選擇「接收文卷」並掃描下方條碼</p>
             
-            <div class="bg-white p-4 border border-[#E6E2D8] mb-6 relative">
-                <div id="qrcode" class="w-48 h-48"></div>
+            <div class="bg-white p-3 sm:p-4 border border-[#E6E2D8] mb-5 sm:mb-6 relative flex justify-center">
+                <div id="qrcode" class="w-48 h-48 flex items-center justify-center"></div>
                 <!-- Scanning animation overlay -->
                 <div class="absolute top-0 left-0 w-full h-[2px] bg-ai/50 shadow-[0_0_10px_#30415D] animate-[scan_2.5s_ease-in-out_infinite]"></div>
             </div>
 
-            <div class="w-full bg-[#F3EFE7] border border-[#E6E2D8] p-4 mb-4">
+            <div class="w-full bg-[#F3EFE7] border border-[#E6E2D8] p-3 sm:p-4 mb-4">
                 <p class="text-[10px] text-sub-ink mb-1 tracking-widest">或手動輸入配對碼</p>
-                <div class="text-3xl font-mono font-bold tracking-widest text-ai" id="display-peer-id">------</div>
+                <div class="text-2xl sm:text-3xl font-mono font-bold tracking-widest text-ai" id="display-peer-id">------</div>
             </div>
 
             <button onclick="resetApp()" class="text-xs text-sub-ink hover:text-ink underline underline-offset-4 tracking-widest">取消並返回</button>
         </div>
 
         <!-- ================= VIEW 3: RECEIVER CONNECTING ================= -->
-        <div id="view-receiver" class="hidden w-full max-w-md flex-col items-center washi-panel p-8 text-center">
-            <h2 class="text-xl font-bold mb-2 tracking-widest text-ink">連接到發送方</h2>
-            <p class="text-xs text-sub-ink mb-6">掃描螢幕上的二維碼，或輸入配對碼</p>
+        <div id="view-receiver" class="hidden w-full max-w-md flex-col items-center washi-panel p-6 sm:p-8 text-center">
+            <h2 class="text-lg sm:text-xl font-bold mb-2 tracking-widest text-ink">連接到發送方</h2>
+            <p class="text-[11px] sm:text-xs text-sub-ink mb-4 sm:mb-6">掃描螢幕上的二維碼，或輸入配對碼</p>
             
             <!-- QR Scanner Container -->
-            <div id="qr-reader" class="w-full max-w-[300px] aspect-square bg-[#F3EFE7] mb-6 flex items-center justify-center border border-[#E6E2D8]"></div>
+            <div id="qr-reader" class="w-full max-w-[250px] sm:max-w-[300px] aspect-square bg-[#F3EFE7] mb-5 sm:mb-6 flex items-center justify-center border border-[#E6E2D8]"></div>
 
-            <div class="w-full flex items-center gap-2 mb-6">
+            <div class="w-full flex items-center gap-2 mb-5 sm:mb-6">
                 <div class="h-px bg-[#E6E2D8] flex-grow"></div>
-                <span class="text-xs text-sub-ink tracking-widest">手動輸入</span>
+                <span class="text-[10px] sm:text-xs text-sub-ink tracking-widest">手動輸入</span>
                 <div class="h-px bg-[#E6E2D8] flex-grow"></div>
             </div>
 
             <div class="flex w-full gap-2 mb-4">
-                <input type="text" id="input-peer-id" maxlength="6" class="flex-grow bg-white border border-[#E6E2D8] px-4 py-3 text-center text-xl font-mono text-ink uppercase focus:outline-none focus:border-ai placeholder-[#A39F98]" placeholder="輸入6碼">
-                <button onclick="connectToPeer()" class="bg-ai hover:bg-[#223047] text-white px-6 py-3 font-medium transition-colors tracking-widest">連線</button>
+                <input type="text" id="input-peer-id" maxlength="6" class="flex-grow bg-white border border-[#E6E2D8] px-3 sm:px-4 py-2.5 sm:py-3 text-center text-lg sm:text-xl font-mono text-ink uppercase focus:outline-none focus:border-ai placeholder-[#A39F98]" placeholder="輸入6碼">
+                <button onclick="connectToPeer()" class="bg-ai hover:bg-[#223047] text-white px-5 sm:px-6 py-2.5 sm:py-3 font-medium transition-colors tracking-widest text-sm sm:text-base">連線</button>
             </div>
 
             <button onclick="resetApp()" class="text-xs text-sub-ink hover:text-ink underline underline-offset-4 tracking-widest">取消並返回</button>
         </div>
 
         <!-- ================= VIEW 4: CONNECTED & WORKSPACE ================= -->
-        <div id="view-connected" class="hidden w-full max-w-xl flex-col items-center washi-panel p-6">
+        <div id="view-connected" class="hidden w-full max-w-xl flex-col items-center washi-panel p-4 sm:p-6">
             <!-- 和風頂部連線狀態 -->
             <div class="flex items-center gap-2 mb-4">
-                <div class="w-3 h-3 rounded-full bg-matcha animate-pulse"></div>
-                <h2 class="text-lg font-bold tracking-widest text-ink">結緣就緒</h2>
-                <span class="text-xs text-sub-ink" id="connected-partner-text">已建立加密管道</span>
+                <div class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-matcha animate-pulse"></div>
+                <h2 class="text-base sm:text-lg font-bold tracking-widest text-ink">結緣就緒</h2>
+                <span class="text-[11px] sm:text-xs text-sub-ink" id="connected-partner-text">已建立加密管道</span>
             </div>
 
             <!-- 分頁切換 Tab UI -->
-            <div class="flex w-full border-b border-[#E6E2D8] mb-6">
-                <button id="tab-btn-file" onclick="switchConnectedTab('file')" class="flex-1 py-2 text-sm font-bold tracking-widest border-b-2 border-matcha text-matcha transition-all duration-200">
+            <div class="flex w-full border-b border-[#E6E2D8] mb-5 sm:mb-6">
+                <button id="tab-btn-file" onclick="switchConnectedTab('file')" class="flex-1 py-2 text-xs sm:text-sm font-bold tracking-widest border-b-2 border-matcha text-matcha transition-all duration-200">
                     📂 傳送文卷
                 </button>
-                <button id="tab-btn-memo" onclick="switchConnectedTab('memo')" class="flex-1 py-2 text-sm font-bold tracking-widest border-b-2 border-transparent text-sub-ink hover:text-ink transition-all duration-200">
+                <button id="tab-btn-memo" onclick="switchConnectedTab('memo')" class="flex-1 py-2 text-xs sm:text-sm font-bold tracking-widest border-b-2 border-transparent text-sub-ink hover:text-ink transition-all duration-200">
                     ✉️ 寄語便箋
                 </button>
             </div>
@@ -242,125 +242,125 @@
                 <!-- Sender view: Select File -->
                 <div id="sender-file-select" class="w-full hidden flex-col items-center">
                     <!-- 增加了 multiple 屬性，並支援 Drag & Drop 拖曳 -->
-                    <div id="drop-zone" class="w-full border-2 border-dashed border-[#C1BDB3] hover:border-matcha bg-[#F3EFE7]/50 p-10 flex flex-col items-center justify-center cursor-pointer transition-all duration-300" onclick="document.getElementById('file-upload').click()">
+                    <div id="drop-zone" class="w-full border-2 border-dashed border-[#C1BDB3] hover:border-matcha bg-[#F3EFE7]/50 p-6 sm:p-10 flex flex-col items-center justify-center cursor-pointer transition-all duration-300" onclick="document.getElementById('file-upload').click()">
                         <input type="file" id="file-upload" class="hidden" multiple onchange="handleFileSelection(this.files)">
-                        <svg class="w-12 h-12 text-sub-ink mb-4 transition-transform duration-300" id="upload-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <svg class="w-10 h-10 sm:w-12 sm:h-12 text-sub-ink mb-3 sm:mb-4 transition-transform duration-300" id="upload-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
                         </svg>
-                        <p class="text-lg font-bold mb-1 text-ink tracking-widest">點擊或拖入文卷</p>
-                        <p class="text-xs text-sub-ink">支援複選多個檔案一同傳送</p>
+                        <p class="text-base sm:text-lg font-bold mb-1 text-ink tracking-widest">點擊或拖入文卷</p>
+                        <p class="text-[11px] sm:text-xs text-sub-ink">支援複選多個檔案一同傳送</p>
                     </div>
                 </div>
 
                 <!-- Receiver view: Waiting for file -->
-                <div id="receiver-waiting" class="w-full hidden flex-col items-center py-8">
-                    <div class="w-12 h-12 border-4 border-[#E6E2D8] border-t-matcha rounded-full animate-spin mb-4"></div>
-                    <p class="text-ink tracking-widest">靜候對方傳送文卷...</p>
+                <div id="receiver-waiting" class="w-full hidden flex-col items-center py-6 sm:py-8">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-[#E6E2D8] border-t-matcha rounded-full animate-spin mb-4"></div>
+                    <p class="text-sm sm:text-base text-ink tracking-widest">靜候對方傳送文卷...</p>
                 </div>
             </div>
 
             <!-- TAB 2: 文字/剪貼簿分享區 -->
             <div id="tab-content-memo" class="w-full hidden flex-col">
                 <div class="mb-4">
-                    <label class="block text-xs font-bold text-sub-ink mb-2 tracking-widest">📝 發送新便箋</label>
+                    <label class="block text-[11px] sm:text-xs font-bold text-sub-ink mb-2 tracking-widest">📝 發送新便箋</label>
                     <div class="flex gap-2">
-                        <textarea id="memo-input" rows="3" class="flex-grow p-3 text-sm bg-white border border-[#E6E2D8] rounded-sm focus:outline-none focus:border-matcha font-sans" placeholder="在此輸入文字、網址或便箋內容..."></textarea>
+                        <textarea id="memo-input" rows="3" class="flex-grow p-2.5 sm:p-3 text-xs sm:text-sm bg-white border border-[#E6E2D8] rounded-sm focus:outline-none focus:border-matcha font-sans" placeholder="在此輸入文字、網址或便箋內容..."></textarea>
                     </div>
                     <div class="flex justify-end mt-2">
-                        <button onclick="sendTextMemo()" class="px-5 py-1.5 bg-matcha hover:bg-[#5A634D] text-white text-xs font-bold tracking-widest rounded-sm transition-colors shadow-sm">
+                        <button onclick="sendTextMemo()" class="px-4 sm:px-5 py-1.5 bg-matcha hover:bg-[#5A634D] text-white text-[11px] sm:text-xs font-bold tracking-widest rounded-sm transition-colors shadow-sm">
                             發送便箋
                         </button>
                     </div>
                 </div>
 
                 <div class="border-t border-[#E6E2D8] pt-4">
-                    <label class="block text-xs font-bold text-sub-ink mb-2 tracking-widest">📥 收到的便箋</label>
-                    <div id="memo-board" class="space-y-3 max-h-48 overflow-y-auto pr-1">
-                        <p class="text-xs text-center text-sub-ink py-4 italic">尚無收到任何便箋</p>
+                    <label class="block text-[11px] sm:text-xs font-bold text-sub-ink mb-2 tracking-widest">📥 收到的便箋</label>
+                    <div id="memo-board" class="space-y-2.5 sm:space-y-3 max-h-48 overflow-y-auto pr-1">
+                        <p class="text-[11px] sm:text-xs text-center text-sub-ink py-4 italic">尚無收到任何便箋</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- ================= VIEW 5: TRANSFER PROGRESS ================= -->
-        <div id="view-transferring" class="hidden w-full max-w-xl flex-col washi-panel p-8">
-            <h2 class="text-lg font-bold mb-4 text-center flex items-center justify-center gap-2 text-ink tracking-widest" id="transfer-title">
-                <svg class="w-5 h-5 animate-bounce text-matcha" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <div id="view-transferring" class="hidden w-full max-w-xl flex-col washi-panel p-5 sm:p-8">
+            <h2 class="text-base sm:text-lg font-bold mb-4 text-center flex items-center justify-center gap-2 text-ink tracking-widest" id="transfer-title">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 animate-bounce text-matcha" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
                 傳輸進行中
             </h2>
             
             <!-- 目前正在傳輸的檔案資訊 -->
-            <div class="bg-white border border-[#E6E2D8] p-4 mb-4 flex items-center gap-4 shadow-sm">
-                <div class="w-12 h-12 bg-[#F3EFE7] flex items-center justify-center text-2xl border border-[#E6E2D8]">📄</div>
-                <div class="flex-grow overflow-hidden">
-                    <p class="text-sm font-bold text-ink truncate font-sans" id="file-name-display">filename.mp4</p>
+            <div class="bg-white border border-[#E6E2D8] p-3 sm:p-4 mb-4 flex items-center gap-3 sm:gap-4 shadow-sm">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-[#F3EFE7] flex items-center justify-center text-xl sm:text-2xl border border-[#E6E2D8]">📄</div>
+                <div class="flex-grow overflow-hidden min-w-0">
+                    <p class="text-xs sm:text-sm font-bold text-ink truncate font-sans" id="file-name-display">filename.mp4</p>
                     <div class="flex justify-between items-center mt-1">
-                        <span class="text-xs text-sub-ink font-sans" id="file-size-display">0 MB</span>
-                        <span class="text-xs font-bold text-matcha tracking-widest" id="file-index-indicator">文卷 1/1</span>
+                        <span class="text-[10px] sm:text-xs text-sub-ink font-sans" id="file-size-display">0 MB</span>
+                        <span class="text-[10px] sm:text-xs font-bold text-matcha tracking-widest" id="file-index-indicator">文卷 1/1</span>
                     </div>
                 </div>
             </div>
 
             <!-- 單檔進度條與預估剩餘時間 -->
-            <div class="space-y-1 mb-6">
-                <div class="flex justify-between text-xs text-sub-ink font-sans">
+            <div class="space-y-1 mb-5 sm:mb-6">
+                <div class="flex justify-between text-[10px] sm:text-xs text-sub-ink font-sans">
                     <span id="progress-percentage">0%</span>
                     <span id="transfer-speed">計算中...</span>
                 </div>
-                <progress id="transfer-progress" value="0" max="100" class="w-full h-2"></progress>
+                <progress id="transfer-progress" value="0" max="100" class="w-full h-1.5 sm:h-2"></progress>
                 <div class="flex justify-end mt-1">
                     <!-- 進階剩餘時間預估 -->
-                    <span id="transfer-eta" class="text-[10px] text-matcha font-bold tracking-widest">剩餘時間：預估中...</span>
+                    <span id="transfer-eta" class="text-[9px] sm:text-[10px] text-matcha font-bold tracking-widest">剩餘時間：預估中...</span>
                 </div>
             </div>
 
             <!-- 和風多文卷佇列清單 -->
             <div class="border-t border-[#E6E2D8] pt-4">
-                <p class="text-xs font-bold text-ink mb-2 tracking-widest flex items-center gap-1">
+                <p class="text-[11px] sm:text-xs font-bold text-ink mb-2 tracking-widest flex items-center gap-1">
                     <span>🗂️ 文卷傳輸佇列</span>
                 </p>
-                <div id="transfer-queue-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <div id="transfer-queue-list" class="space-y-2 max-h-40 sm:max-h-48 overflow-y-auto pr-1">
                     <!-- 佇列項目會動態生成於此 -->
                 </div>
             </div>
         </div>
 
         <!-- ================= VIEW 6: SUCCESS ================= -->
-        <div id="view-success" class="hidden w-full max-w-md flex-col items-center washi-panel p-8 text-center">
-            <div class="w-16 h-16 rounded bg-matcha/10 flex items-center justify-center mb-4 border border-matcha/20">
-                <svg class="w-10 h-10 text-matcha" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <div id="view-success" class="hidden w-full max-w-md flex-col items-center washi-panel p-6 sm:p-8 text-center">
+            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded bg-matcha/10 flex items-center justify-center mb-3 sm:mb-4 border border-matcha/20">
+                <svg class="w-8 h-8 sm:w-10 sm:h-10 text-matcha" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
             </div>
-            <h2 class="text-2xl font-bold mb-2 text-ink tracking-widest">傳輸完成</h2>
-            <p class="text-sm text-sub-ink mb-6" id="success-message">文卷已成功送達</p>
+            <h2 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2 text-ink tracking-widest">傳輸完成</h2>
+            <p class="text-xs sm:text-sm text-sub-ink mb-5 sm:mb-6" id="success-message">文卷已成功送達</p>
 
             <!-- 接收完成的文卷總表清單 (支援個別與批次儲存) -->
-            <div id="download-action-container" class="w-full hidden text-left mb-6">
-                <p class="text-xs font-bold text-ink mb-2 tracking-widest">📥 點擊下方按鈕儲存文卷：</p>
+            <div id="download-action-container" class="w-full hidden text-left mb-5 sm:mb-6">
+                <p class="text-[11px] sm:text-xs font-bold text-ink mb-2 tracking-widest">📥 點擊下方按鈕儲存文卷：</p>
                 
-                <div id="success-files-list" class="w-full max-h-48 overflow-y-auto border border-[#E6E2D8] bg-white p-2 space-y-2 mb-4 rounded-sm">
+                <div id="success-files-list" class="w-full max-h-40 sm:max-h-48 overflow-y-auto border border-[#E6E2D8] bg-white p-2 space-y-2 mb-3 sm:mb-4 rounded-sm">
                     <!-- 收到的檔案清單將渲染在此 -->
                 </div>
 
                 <!-- 點對點打包 ZIP 按鈕 (僅多個檔案時呈現) -->
-                <button id="btn-download-zip" class="w-full py-2.5 bg-ai hover:bg-[#223047] text-white font-bold text-sm transition-colors shadow-sm tracking-widest flex justify-center items-center gap-2 rounded-sm mb-2 hidden">
+                <button id="btn-download-zip" class="w-full py-2 sm:py-2.5 bg-ai hover:bg-[#223047] text-white font-bold text-xs sm:text-sm transition-colors shadow-sm tracking-widest flex justify-center items-center gap-2 rounded-sm mb-2 hidden">
                     📦 打包下載為 ZIP
                 </button>
 
-                <button id="btn-download-all" class="w-full py-2.5 bg-white border border-[#E6E2D8] hover:bg-[#F3EFE7] text-ink font-bold text-sm transition-colors shadow-sm tracking-widest flex justify-center items-center gap-2 rounded-sm">
+                <button id="btn-download-all" class="w-full py-2 sm:py-2.5 bg-white border border-[#E6E2D8] hover:bg-[#F3EFE7] text-ink font-bold text-xs sm:text-sm transition-colors shadow-sm tracking-widest flex justify-center items-center gap-2 rounded-sm">
                     📥 儲存全部文卷 (個別下載)
                 </button>
             </div>
 
             <!-- Continue / Reset Buttons -->
-            <button onclick="continueTransfer()" class="w-full py-3 bg-matcha hover:bg-[#5A634D] text-white font-bold text-md transition-colors shadow-sm mb-4 tracking-widest">
+            <button onclick="continueTransfer()" class="w-full py-2.5 sm:py-3 bg-matcha hover:bg-[#5A634D] text-white font-bold text-sm sm:text-base transition-colors shadow-sm mb-3 sm:mb-4 tracking-widest">
                 繼續傳檔 (保持連線)
             </button>
 
-            <button onclick="resetApp()" class="text-sm text-sub-ink hover:text-ink transition-colors py-2 px-4 underline underline-offset-4 tracking-widest">
+            <button onclick="resetApp()" class="text-xs sm:text-sm text-sub-ink hover:text-ink transition-colors py-2 px-4 underline underline-offset-4 tracking-widest">
                 結束連線並返回
             </button>
         </div>
