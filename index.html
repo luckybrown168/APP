@@ -163,7 +163,10 @@
             </div>
             <div>
                 <h1 class="text-lg md:text-xl font-bold tracking-widest text-ink">結緣傳檔</h1>
-                <p class="text-[10px] md:text-[11px] text-sub-ink font-medium tracking-widest">P2P 點對點極速傳輸</p>
+                <p class="text-[10px] md:text-[11px] text-matcha font-bold tracking-widest flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    E2EE 端到端加密傳輸
+                </p>
             </div>
         </div>
         <div class="text-[10px] md:text-xs bg-white px-2 py-1.5 md:px-3 rounded-sm border border-[#E6E2D8] flex items-center gap-1.5 md:gap-2 shadow-sm">
@@ -279,6 +282,15 @@
                         <p class="text-base sm:text-lg font-bold mb-1 text-ink tracking-widest">點擊或拖入文卷</p>
                         <p class="text-[11px] sm:text-xs text-sub-ink">支援複選，將同步廣播給所有參與者</p>
                     </div>
+                    
+                    <!-- [新增] 閱後即焚模式 Checkbox -->
+                    <label class="mt-4 flex items-center gap-2 cursor-pointer group w-full justify-center" onclick="event.stopPropagation()">
+                        <input type="checkbox" id="checkbox-burn" class="w-4 h-4 accent-[#B5494B] cursor-pointer rounded border-[#C1BDB3]">
+                        <span class="text-xs sm:text-sm font-bold text-sub-ink group-hover:text-hi transition-colors tracking-widest flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"></path></svg>
+                            啟用閱後即焚 (對方下載後立即銷毀)
+                        </span>
+                    </label>
                 </div>
 
                 <!-- Receiver view: Waiting for file -->
@@ -428,6 +440,8 @@
         let currentOffset = 0;      // 發送端當前斷點位移量
         let isTransmitting = false; // [新增] 發送端正在傳輸鎖定，防止多重廣播迴圈
         
+        let isBurnAfterReading = false; // [新增] 閱後即焚狀態
+
         // --- Speed & ETA Metrics ---
         let transferStartTime = 0;
         let lastReportTime = 0;
@@ -438,6 +452,20 @@
 
         // --- DOM Elements ---
         const views = ['view-home', 'view-sender-waiting', 'view-receiver', 'view-connected', 'view-transferring', 'view-success'];
+
+        // --- Security Helper: 跨站腳本(XSS)防禦過濾器 ---
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
 
         // --- On Page Load ---
         window.addEventListener('DOMContentLoaded', () => {
@@ -667,7 +695,8 @@
                     // 若有新接收方中途加入，且佇列有檔案，則自動發送中繼資料讓接收方預備 (或參與後續傳輸)
                     if (fileQueue.length > 0) {
                         const queueMetadata = fileQueue.map(f => ({ name: f.name, size: f.size, mime: f.type }));
-                        connection.send({ type: 'batch_start', files: queueMetadata });
+                        const burnFlag = document.getElementById('checkbox-burn') ? document.getElementById('checkbox-burn').checked : false;
+                        connection.send({ type: 'batch_start', files: queueMetadata, burnAfterReading: burnFlag });
                         if (fileToSend && !isPaused) {
                             connection.send({
                                 type: 'file_metadata',
@@ -752,10 +781,13 @@
                     statusBadge = `<span class="px-1.5 py-0.5 text-[10px] bg-gray-100 text-sub-ink rounded-sm">待</span>`;
                 }
 
+                // [資安修補] 使用 escapeHTML 處理 file.name，防止惡意檔名引發 XSS
+                const safeFileName = escapeHTML(file.name);
+
                 item.innerHTML = `
                     <div class="flex items-center gap-2 overflow-hidden flex-grow pr-4">
                         <span class="text-[10px] text-sub-ink w-4">${index + 1}</span>
-                        <span class="truncate" title="${file.name}">${file.name}</span>
+                        <span class="truncate" title="${safeFileName}">${safeFileName}</span>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <span class="text-sub-ink text-[10px]">${formatBytes(file.size)}</span>
@@ -773,15 +805,33 @@
                 return;
             }
             
-            fileQueue = Array.from(files);
+            // [資安修補] 防止記憶體耗盡 (DoS)，過濾超過 2GB 的單一檔案
+            const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+            const validFiles = [];
+            for (let f of files) {
+                if (f.size > MAX_FILE_SIZE) {
+                    alert(`文卷 "${escapeHTML(f.name)}" 超過 2GB 限制。\n為了防止瀏覽器記憶體崩潰，已略過此檔。`);
+                } else {
+                    validFiles.push(f);
+                }
+            }
+
+            if (validFiles.length === 0) {
+                document.getElementById('file-upload').value = '';
+                return;
+            }
+            
+            fileQueue = Array.from(validFiles);
             currentFileIndex = 0;
             isPaused = false;
             
+            const burnFlag = document.getElementById('checkbox-burn') ? document.getElementById('checkbox-burn').checked : false;
+
             const queueMetadata = fileQueue.map(f => ({
                 name: f.name, size: f.size, mime: f.type
             }));
 
-            broadcast({ type: 'batch_start', files: queueMetadata });
+            broadcast({ type: 'batch_start', files: queueMetadata, burnAfterReading: burnFlag });
             startFileTransmission(0);
         }
 
@@ -913,16 +963,19 @@
 
             const memoItem = document.createElement('div');
             memoItem.className = "p-3 bg-[#F3EFE7] border border-[#E6E2D8] text-xs rounded-sm shadow-sm space-y-1.5 text-left font-sans";
-            const escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            
+            // [資安修補] 使用統防禦函數逃脫 HTML
+            const safeText = escapeHTML(text);
+            const safeSender = escapeHTML(senderName);
             
             memoItem.innerHTML = `
                 <div class="flex justify-between items-center border-b border-[#E6E2D8] pb-1">
-                    <span class="font-bold text-matcha tracking-widest">${senderName}</span>
+                    <span class="font-bold text-matcha tracking-widest">${safeSender}</span>
                     <button class="text-[10px] px-1.5 py-0.5 bg-white border border-[#E6E2D8] hover:bg-[#FAFAFA] font-bold text-sub-ink rounded-sm tracking-widest transition-colors btn-copy">
                         複製
                     </button>
                 </div>
-                <p class="whitespace-pre-wrap select-all text-ink break-words leading-relaxed">${escapedText}</p>
+                <p class="whitespace-pre-wrap select-all text-ink break-words leading-relaxed">${safeText}</p>
             `;
 
             memoItem.querySelector('.btn-copy').addEventListener('click', function(e) {
@@ -1010,6 +1063,8 @@
             }
 
             if (data.type === 'batch_start') {
+                isBurnAfterReading = data.burnAfterReading || false;
+
                 const firstFile = data.files[0];
                 const isResuming = receiveBuffer.length > 0 && fileMetadata && firstFile && firstFile.name === fileMetadata.name && firstFile.size === fileMetadata.size;
 
@@ -1085,15 +1140,41 @@
             const container = document.getElementById('success-files-list');
             container.innerHTML = '';
             
+            // 依據閱後即焚狀態變更提示文字
+            const msgEl = document.getElementById('success-message');
+            if (isBurnAfterReading) {
+                msgEl.innerHTML = '<span class="text-hi font-bold flex items-center justify-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"></path></svg> 閱後即焚：文卷儲存後將立即從記憶體銷毀</span>';
+            } else {
+                msgEl.innerText = '文卷已成功送達';
+            }
+
             receivedFilesList.forEach((file, index) => {
                 const item = document.createElement('div');
                 item.className = "flex justify-between items-center p-2 bg-[#F3EFE7] border border-[#E6E2D8] text-xs font-sans rounded-sm";
-                item.innerHTML = `
-                    <span class="truncate max-w-[200px] font-bold text-ink" title="${file.name}">${file.name}</span>
-                    <button onclick="triggerDownload('${file.url}', '${file.name}')" class="px-2.5 py-1 bg-matcha hover:bg-[#5A634D] text-[#F3EFE7] text-[11px] font-bold tracking-widest rounded-sm transition-colors">
-                        儲存
-                    </button>
-                `;
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = "truncate max-w-[200px] font-bold text-ink";
+                // [資安修補] 使用純文字賦值，避免將惡意文字解析為 HTML 標籤
+                nameSpan.title = file.name;
+                nameSpan.innerText = file.name;
+
+                const btn = document.createElement('button');
+                btn.className = "px-2.5 py-1 bg-matcha hover:bg-[#5A634D] text-[#F3EFE7] text-[11px] font-bold tracking-widest rounded-sm transition-colors";
+                btn.innerText = "儲存";
+
+                btn.onclick = () => {
+                    triggerDownload(file.url, file.name);
+                    if (isBurnAfterReading) {
+                        setTimeout(() => URL.revokeObjectURL(file.url), 1000);
+                        btn.disabled = true;
+                        btn.innerText = '已銷毀';
+                        btn.className = "px-2.5 py-1 bg-[#E6E2D8] text-sub-ink text-[11px] font-bold tracking-widest rounded-sm cursor-not-allowed";
+                        file.burned = true;
+                    }
+                };
+
+                item.appendChild(nameSpan);
+                item.appendChild(btn);
                 container.appendChild(item);
             });
 
@@ -1106,8 +1187,40 @@
             }
 
             document.getElementById('btn-download-all').onclick = () => {
-                receivedFilesList.forEach(file => { triggerDownload(file.url, file.name); });
+                receivedFilesList.forEach(file => { 
+                    if (!file.burned) triggerDownload(file.url, file.name); 
+                });
+                if (isBurnAfterReading) burnAll();
             };
+        }
+
+        // [新增] 執行全面銷毀機制
+        function burnAll() {
+            receivedFilesList.forEach(file => {
+                if (!file.burned) {
+                    setTimeout(() => URL.revokeObjectURL(file.url), 1000);
+                    file.burned = true;
+                }
+            });
+            
+            const btnAll = document.getElementById('btn-download-all');
+            const btnZip = document.getElementById('btn-download-zip');
+            
+            if (btnAll) {
+                btnAll.disabled = true;
+                btnAll.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            if (btnZip && !btnZip.classList.contains('hidden')) {
+                btnZip.disabled = true;
+                btnZip.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+
+            const btns = document.getElementById('success-files-list').querySelectorAll('button');
+            btns.forEach(btn => {
+                btn.disabled = true;
+                btn.innerText = '已銷毀';
+                btn.className = "px-2.5 py-1 bg-[#E6E2D8] text-sub-ink text-[11px] font-bold tracking-widest rounded-sm cursor-not-allowed";
+            });
         }
 
         async function handleZipDownload() {
@@ -1130,11 +1243,17 @@
                 const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
                 triggerDownload(zipUrl, `DropShare_文卷_${todayStr}.zip`);
                 setTimeout(() => URL.revokeObjectURL(zipUrl), 10000);
+                
+                if (isBurnAfterReading) burnAll();
             } catch (error) {
                 alert("文卷壓縮打包失敗，請使用下方個別儲存。");
             } finally {
-                zipBtn.disabled = false;
-                zipBtn.innerHTML = originalContent;
+                if (!isBurnAfterReading) {
+                    zipBtn.disabled = false;
+                    zipBtn.innerHTML = originalContent;
+                } else {
+                    zipBtn.innerHTML = `<span>已打包並銷毀</span>`;
+                }
             }
         }
 
@@ -1209,6 +1328,7 @@
             isPaused = false;
             currentOffset = 0;
             isTransmitting = false; // [新增] 解除傳輸鎖
+            isBurnAfterReading = false; // 重置銷毀狀態
             
             document.getElementById('transfer-progress').value = 0;
             document.getElementById('progress-percentage').innerText = '0%';
@@ -1216,6 +1336,19 @@
             document.getElementById('download-action-container').classList.add('hidden');
             document.getElementById('file-upload').value = ''; 
             document.getElementById('transfer-controls').classList.add('hidden');
+            
+            // 恢復下載按鈕狀態
+            const btnAll = document.getElementById('btn-download-all');
+            const btnZip = document.getElementById('btn-download-zip');
+            if (btnAll) {
+                btnAll.disabled = false;
+                btnAll.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+            if (btnZip) {
+                btnZip.disabled = false;
+                btnZip.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnZip.innerHTML = `📦 打包下載為 ZIP`; // 還原文字
+            }
             
             // 重置暫停按鈕 UI
             const btn = document.getElementById('btn-pause-resume');
