@@ -162,7 +162,7 @@
                     </svg>
                 </div>
                 <h2 class="text-xl sm:text-2xl font-bold text-ink mb-1 sm:mb-2 tracking-widest">發送文卷</h2>
-                <p class="text-xs sm:text-sm text-sub-ink">產生二維碼供對方掃描</p>
+                <p class="text-xs sm:text-sm text-sub-ink">產生二維碼供多人掃描</p>
             </button>
 
             <!-- Receive Button -->
@@ -179,7 +179,7 @@
 
         <!-- ================= VIEW 2: SENDER WAITING ================= -->
         <div id="view-sender-waiting" class="hidden w-full max-w-md flex-col items-center washi-panel p-6 sm:p-8 text-center">
-            <h2 class="text-lg sm:text-xl font-bold mb-2 tracking-widest text-ink">等待對方連接...</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-2 tracking-widest text-ink">等待參與者連接...</h2>
             <p class="text-[11px] sm:text-xs text-sub-ink mb-6 sm:mb-8">請接收方選擇「接收文卷」並掃描下方條碼</p>
             
             <div class="bg-white p-3 sm:p-4 border border-[#E6E2D8] mb-5 sm:mb-6 relative flex justify-center">
@@ -220,11 +220,18 @@
 
         <!-- ================= VIEW 4: CONNECTED & WORKSPACE ================= -->
         <div id="view-connected" class="hidden w-full max-w-xl flex-col items-center washi-panel p-4 sm:p-6">
+            
             <!-- 和風頂部連線狀態 -->
-            <div class="flex items-center gap-2 mb-4">
+            <div class="flex items-center gap-2 mb-3">
                 <div class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-matcha animate-pulse"></div>
                 <h2 class="text-base sm:text-lg font-bold tracking-widest text-ink">結緣就緒</h2>
                 <span class="text-[11px] sm:text-xs text-sub-ink" id="connected-partner-text">已建立加密管道</span>
+            </div>
+
+            <!-- 發送方專屬：顯示房間配對碼，讓其他人隨時可加入 -->
+            <div id="room-code-display" class="hidden w-full bg-[#F3EFE7] border border-[#E6E2D8] px-3 py-2 mb-4 rounded-sm flex items-center justify-between shadow-sm">
+                <span class="text-[10px] sm:text-xs text-sub-ink tracking-widest">本房配對碼 (允許多人)：</span>
+                <span class="text-sm sm:text-base font-mono font-bold text-ai" id="workspace-peer-id"></span>
             </div>
 
             <!-- 分頁切換 Tab UI -->
@@ -241,21 +248,20 @@
             <div id="tab-content-file" class="w-full flex flex-col items-center">
                 <!-- Sender view: Select File -->
                 <div id="sender-file-select" class="w-full hidden flex-col items-center">
-                    <!-- 增加了 multiple 屬性，並支援 Drag & Drop 拖曳 -->
                     <div id="drop-zone" class="w-full border-2 border-dashed border-[#C1BDB3] hover:border-matcha bg-[#F3EFE7]/50 p-6 sm:p-10 flex flex-col items-center justify-center cursor-pointer transition-all duration-300" onclick="document.getElementById('file-upload').click()">
                         <input type="file" id="file-upload" class="hidden" multiple onchange="handleFileSelection(this.files)">
                         <svg class="w-10 h-10 sm:w-12 sm:h-12 text-sub-ink mb-3 sm:mb-4 transition-transform duration-300" id="upload-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
                         </svg>
                         <p class="text-base sm:text-lg font-bold mb-1 text-ink tracking-widest">點擊或拖入文卷</p>
-                        <p class="text-[11px] sm:text-xs text-sub-ink">支援複選多個檔案一同傳送</p>
+                        <p class="text-[11px] sm:text-xs text-sub-ink">支援複選，將同步廣播給所有參與者</p>
                     </div>
                 </div>
 
                 <!-- Receiver view: Waiting for file -->
                 <div id="receiver-waiting" class="w-full hidden flex-col items-center py-6 sm:py-8">
                     <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-[#E6E2D8] border-t-matcha rounded-full animate-spin mb-4"></div>
-                    <p class="text-sm sm:text-base text-ink tracking-widest">靜候對方傳送文卷...</p>
+                    <p class="text-sm sm:text-base text-ink tracking-widest">靜候發送方廣播文卷...</p>
                 </div>
             </div>
 
@@ -268,7 +274,7 @@
                     </div>
                     <div class="flex justify-end mt-2">
                         <button onclick="sendTextMemo()" class="px-4 sm:px-5 py-1.5 bg-matcha hover:bg-[#5A634D] text-white text-[11px] sm:text-xs font-bold tracking-widest rounded-sm transition-colors shadow-sm">
-                            發送便箋
+                            廣播便箋
                         </button>
                     </div>
                 </div>
@@ -311,7 +317,6 @@
                 </div>
                 <progress id="transfer-progress" value="0" max="100" class="w-full h-1.5 sm:h-2"></progress>
                 <div class="flex justify-end mt-1">
-                    <!-- 進階剩餘時間預估 -->
                     <span id="transfer-eta" class="text-[9px] sm:text-[10px] text-matcha font-bold tracking-widest">剩餘時間：預估中...</span>
                 </div>
             </div>
@@ -320,7 +325,7 @@
             <div id="transfer-controls" class="hidden flex justify-end items-center mt-2 border-t border-[#E6E2D8] pt-3 mb-4">
                 <button id="btn-pause-resume" onclick="togglePause()" class="px-3 py-1.5 bg-white border border-[#E6E2D8] text-[10px] sm:text-xs font-bold text-sub-ink hover:text-ink rounded-sm tracking-widest flex items-center gap-1 transition-colors shadow-sm">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span>暫停傳輸</span>
+                    <span>暫停廣播</span>
                 </button>
             </div>
 
@@ -353,7 +358,7 @@
                     <!-- 收到的檔案清單將渲染在此 -->
                 </div>
 
-                <!-- 點對點打包 ZIP 按鈕 (僅多個檔案時呈現) -->
+                <!-- 點對點打包 ZIP 按鈕 -->
                 <button id="btn-download-zip" class="w-full py-2 sm:py-2.5 bg-ai hover:bg-[#223047] text-white font-bold text-xs sm:text-sm transition-colors shadow-sm tracking-widest flex justify-center items-center gap-2 rounded-sm mb-2 hidden">
                     📦 打包下載為 ZIP
                 </button>
@@ -365,7 +370,7 @@
 
             <!-- Continue / Reset Buttons -->
             <button onclick="continueTransfer()" class="w-full py-2.5 sm:py-3 bg-matcha hover:bg-[#5A634D] text-white font-bold text-sm sm:text-base transition-colors shadow-sm mb-3 sm:mb-4 tracking-widest">
-                繼續傳檔 (保持連線)
+                返回工作區 (保持連線)
             </button>
 
             <button onclick="resetApp()" class="text-xs sm:text-sm text-sub-ink hover:text-ink transition-colors py-2 px-4 underline underline-offset-4 tracking-widest">
@@ -378,7 +383,7 @@
     <script>
         // --- WebRTC / PeerJS Core State ---
         let peer = null;
-        let conn = null;
+        let connections = []; // 升級為陣列，支援多重連線 (1-to-N)
         let myId = '';
         let role = ''; // 'sender' or 'receiver'
         let qrcodeObj = null;
@@ -410,7 +415,7 @@
         // --- DOM Elements ---
         const views = ['view-home', 'view-sender-waiting', 'view-receiver', 'view-connected', 'view-transferring', 'view-success'];
 
-        // --- On Page Load: 偵測 URL Hash 自動連線 ---
+        // --- On Page Load ---
         window.addEventListener('DOMContentLoaded', () => {
             const hash = window.location.hash.substring(1).trim().toUpperCase();
             if (hash && hash.length === 6) {
@@ -422,6 +427,29 @@
             }
             setupDragAndDrop();
         });
+
+        // --- Utility: 廣播到所有活躍連線 (1-to-N) ---
+        function broadcast(data) {
+            connections.forEach(c => {
+                if (c.open) c.send(data);
+            });
+        }
+
+        // --- Utility: 更新畫面上的連線人數 ---
+        function updateConnectionCount() {
+            const el = document.getElementById('connected-partner-text');
+            if (role === 'sender') {
+                el.innerText = `已連線: ${connections.length} 人`;
+                if (connections.length > 0) {
+                    updateStatus(`傳輸房 (${connections.length} 人)`, '#30415D');
+                } else {
+                    updateStatus('等待參與者加入...', '#D2A042');
+                }
+            } else {
+                el.innerText = `已與發送方建立安全連結`;
+                updateStatus('結緣連線成功', '#30415D'); 
+            }
+        }
 
         // --- Drag & Drop Setup ---
         function setupDragAndDrop() {
@@ -462,7 +490,7 @@
             document.getElementById(viewId).classList.add('flex');
         }
 
-        // --- Utility: 切換 Connected 分頁 (File vs Memo) ---
+        // --- Utility: 切換 Connected 分頁 ---
         function switchConnectedTab(tabName) {
             const fileBtn = document.getElementById('tab-btn-file');
             const memoBtn = document.getElementById('tab-btn-memo');
@@ -519,16 +547,16 @@
                 if (onOpenCallback) onOpenCallback(id);
             });
 
+            // 身為發送方 (房主)，聆聽多人的連入請求
             peer.on('connection', (connection) => {
                 if (role !== 'sender') return;
-                conn = connection;
-                setupConnectionListeners();
+                connections.push(connection);
+                setupConnectionListeners(connection);
             });
 
             peer.on('error', (err) => {
-                alert('連線中斷: ' + err.type);
-                updateStatus('連線中斷', '#B5494B'); 
-                resetApp();
+                alert('連線錯誤: ' + err.type);
+                if (role !== 'sender') resetApp(); // 發送端容忍錯誤，接收端直接重置
             });
         }
 
@@ -594,48 +622,57 @@
             }
 
             updateStatus('建立連線中...', '#D2A042');
-            conn = peer.connect(targetId, { reliable: true });
-            setupConnectionListeners();
+            const connection = peer.connect(targetId, { reliable: true });
+            connections.push(connection);
+            setupConnectionListeners(connection);
         }
 
         // --- Connection Setup ---
-        function setupConnectionListeners() {
-            conn.on('open', () => {
-                updateStatus('結緣連線成功', '#30415D'); 
+        function setupConnectionListeners(connection) {
+            connection.on('open', () => {
+                updateConnectionCount();
                 
-                // 為了支援斷線重連，連線成功後若尚未斷線續傳則不重置狀態
                 if (role === 'sender') {
-                    // Sender normally waits for drag drop unless resuming
-                    document.getElementById('connected-partner-text').innerText = '與接收方建立安全連結';
+                    // 若有新接收方中途加入，且佇列有檔案，則自動發送中繼資料讓接收方預備 (或參與後續傳輸)
+                    if (fileQueue.length > 0) {
+                        const queueMetadata = fileQueue.map(f => ({ name: f.name, size: f.size, mime: f.type }));
+                        connection.send({ type: 'batch_start', files: queueMetadata });
+                        if (fileToSend && !isPaused) {
+                            connection.send({
+                                type: 'file_metadata',
+                                name: fileToSend.name, size: fileToSend.size, mime: fileToSend.type, index: currentFileIndex
+                            });
+                        }
+                    }
+                    // 發送方始終開啟工作區
+                    showConnectedView();
                 } else {
-                    document.getElementById('connected-partner-text').innerText = '與發送方建立安全連結';
+                    // 接收方如果是第一次連上
+                    if (fileQueue.length === 0) clearTransferData();
+                    showConnectedView();
                 }
-                
-                if (role === 'sender' && fileQueue.length > 0) {
-                    // 如果 Sender 重連時佇列還有檔案，重新發出 batch_start 讓 Receiver 比對
-                    const queueMetadata = fileQueue.map(f => ({ name: f.name, size: f.size, mime: f.type }));
-                    conn.send({ type: 'batch_start', files: queueMetadata });
-                } else if (fileQueue.length === 0) {
-                    clearTransferData();
-                }
-                
-                showConnectedView();
             });
 
-            conn.on('data', handleIncomingData);
+            // 處理這條連線傳來的資料
+            connection.on('data', (data) => handleIncomingData(data, connection));
 
-            conn.on('close', () => {
-                // [修改] 如果是接收端，且正在傳輸檔案中斷線，保留緩衝區並等待重新連線，不全面重置
-                if(role === 'receiver' && receivedFilesList.length === 0 && receivedSize > 0 && receivedSize < (fileMetadata ? fileMetadata.size : 0)) {
-                    updateStatus('等待發送方重新連線...', '#B5494B');
-                    document.getElementById('transfer-speed').innerText = '連線中斷';
-                    document.getElementById('transfer-eta').innerText = '等待續傳...';
-                    
-                    const icon = `<svg class="w-4 h-4 sm:w-5 sm:h-5 text-sub-ink" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
-                    document.getElementById('transfer-title').innerHTML = `${icon} 連線中斷，等待續傳 (${currentFileIndex + 1}/${fileQueue.length})`;
-                    conn = null; // 釋放失效連線，等 Sender 再連入
-                } else {
-                    resetApp();
+            connection.on('close', () => {
+                // 從陣列中移除斷線者
+                connections = connections.filter(c => c !== connection);
+                updateConnectionCount();
+
+                if (role === 'receiver') {
+                    // 接收端若在傳輸中斷線，保留緩衝區並等待重新連線
+                    if(receivedFilesList.length === 0 && receivedSize > 0 && receivedSize < (fileMetadata ? fileMetadata.size : 0)) {
+                        updateStatus('等待發送方重新連線...', '#B5494B');
+                        document.getElementById('transfer-speed').innerText = '連線中斷';
+                        document.getElementById('transfer-eta').innerText = '等待續傳...';
+                        
+                        const icon = `<svg class="w-4 h-4 sm:w-5 sm:h-5 text-sub-ink" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+                        document.getElementById('transfer-title').innerHTML = `${icon} 連線中斷，等待續傳 (${currentFileIndex + 1}/${fileQueue.length})`;
+                    } else {
+                        resetApp();
+                    }
                 }
             });
         }
@@ -648,10 +685,15 @@
                 document.getElementById('sender-file-select').classList.remove('hidden');
                 document.getElementById('sender-file-select').classList.add('flex');
                 document.getElementById('receiver-waiting').classList.add('hidden');
+                
+                // 顯示房間配對碼，方便其他人加入
+                document.getElementById('room-code-display').classList.remove('hidden');
+                document.getElementById('workspace-peer-id').innerText = myId;
             } else {
                 document.getElementById('receiver-waiting').classList.remove('hidden');
                 document.getElementById('receiver-waiting').classList.add('flex');
                 document.getElementById('sender-file-select').classList.add('hidden');
+                document.getElementById('room-code-display').classList.add('hidden');
             }
         }
 
@@ -695,7 +737,10 @@
 
         // --- Sender Logic: File Queue Selection & Transmission ---
         function handleFileSelection(files) {
-            if (files.length === 0) return;
+            if (files.length === 0 || connections.length === 0) {
+                if(connections.length === 0) alert('請等待至少一位參與者加入後再選擇文卷。');
+                return;
+            }
             
             fileQueue = Array.from(files);
             currentFileIndex = 0;
@@ -705,7 +750,7 @@
                 name: f.name, size: f.size, mime: f.type
             }));
 
-            conn.send({ type: 'batch_start', files: queueMetadata });
+            broadcast({ type: 'batch_start', files: queueMetadata });
             startFileTransmission(0);
         }
 
@@ -717,7 +762,6 @@
             
             showView('view-transferring');
             
-            // 顯示暫停按鈕
             if (role === 'sender') {
                 const controls = document.getElementById('transfer-controls');
                 controls.classList.remove('hidden');
@@ -725,19 +769,17 @@
             
             renderQueueList();
 
-            // 觸發此檔案的 Metadata 並等待接收方回應 (準備好或要求斷點續傳)
-            conn.send({
+            // 廣播此檔案的 Metadata 並等待接收方回應
+            broadcast({
                 type: 'file_metadata',
                 name: fileToSend.name,
                 size: fileToSend.size,
                 mime: fileToSend.type,
                 index: currentFileIndex
             });
-            
-            // 這裡不再直接呼叫 sendNextChunk，改為等待接收端的 request_resume 指令
         }
 
-        // --- Pause & Resume Logic (發送端) ---
+        // --- Pause & Resume Logic (發送端廣播) ---
         function togglePause() {
             if (role !== 'sender') return;
             isPaused = !isPaused;
@@ -745,29 +787,27 @@
             const span = btn.querySelector('span');
 
             if (isPaused) {
-                // 切換至「繼續傳輸」狀態
-                span.innerText = '繼續傳輸';
-                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>繼續傳輸</span>`;
+                span.innerText = '繼續廣播';
+                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>繼續廣播</span>`;
                 btn.classList.add('text-matcha', 'border-matcha', 'bg-[#F4F0EA]');
                 btn.classList.remove('text-sub-ink', 'border-[#E6E2D8]', 'bg-white');
                 
                 document.getElementById('transfer-speed').innerText = '已暫停';
                 document.getElementById('transfer-eta').innerText = '暫停中';
-                updateStatus('傳輸已暫停', '#D2A042');
+                updateStatus(`廣播已暫停 (${connections.length}人)`, '#D2A042');
                 
-                if (conn) conn.send({ type: 'transfer_paused' });
+                broadcast({ type: 'transfer_paused' });
             } else {
-                // 切換回「暫停傳輸」狀態
-                span.innerText = '暫停傳輸';
-                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>暫停傳輸</span>`;
+                span.innerText = '暫停廣播';
+                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>暫停廣播</span>`;
                 btn.classList.remove('text-matcha', 'border-matcha', 'bg-[#F4F0EA]');
                 btn.classList.add('text-sub-ink', 'border-[#E6E2D8]', 'bg-white');
                 
                 lastReportTime = Date.now();
                 lastReportedSize = currentOffset;
-                updateStatus('傳輸進行中', '#6B775A');
+                updateStatus(`廣播進行中 (${connections.length}人)`, '#6B775A');
                 
-                if (conn) conn.send({ type: 'transfer_resumed' });
+                broadcast({ type: 'transfer_resumed' });
                 sendNextChunk(currentOffset);
             }
         }
@@ -775,42 +815,48 @@
         function sendNextChunk(offset) {
             currentOffset = offset;
             
-            if (isPaused) {
-                return; // 如果處於暫停狀態，跳出迴圈
-            }
+            if (isPaused || connections.length === 0) return;
             
             if (offset >= fileToSend.size) {
-                conn.send({ type: 'file_eof', index: currentFileIndex });
+                broadcast({ type: 'file_eof', index: currentFileIndex });
                 if (currentFileIndex + 1 < fileQueue.length) {
                     setTimeout(() => { startFileTransmission(currentFileIndex + 1); }, 100); 
                 } else {
-                    conn.send({ type: 'batch_eof' });
-                    showSuccess(`所有文卷已成功送出！(共 ${fileQueue.length} 個)`);
+                    broadcast({ type: 'batch_eof' });
+                    showSuccess(`所有文卷已成功送出給 ${connections.length} 位參與者！(共 ${fileQueue.length} 個)`);
                 }
                 return;
             }
 
-            if (conn.dataChannel.bufferedAmount > 16384 * 64) { 
+            // WebRTC 背壓流量限制（若其中一位接收方緩衝過高，稍作等待以保證同步）
+            let bufferFull = false;
+            connections.forEach(c => {
+                if (c.dataChannel && c.dataChannel.bufferedAmount > 16384 * 64) bufferFull = true;
+            });
+            
+            if (bufferFull) { 
                 setTimeout(() => sendNextChunk(offset), 20);
                 return;
             }
 
             const chunk = fileToSend.slice(offset, offset + CHUNK_SIZE);
             chunk.arrayBuffer().then(buffer => {
-                conn.send({ type: 'chunk', data: buffer });
+                // 將 offset 一併發送，供接收端判斷是否為重複資料 (Chunk Deduplication 防腐敗機制)
+                broadcast({ type: 'chunk', data: buffer, offset: offset });
                 const newOffset = offset + CHUNK_SIZE;
                 updateProgressUI(Math.min(newOffset, fileToSend.size), fileToSend.size);
                 sendNextChunk(newOffset);
             });
         }
 
-        // --- Sender/Receiver Text Memo Sharing ---
+        // --- Sender/Receiver Text Memo Sharing (Mesh Chat) ---
         function sendTextMemo() {
             const textarea = document.getElementById('memo-input');
             const text = textarea.value.trim();
-            if (!text) return;
+            if (!text || connections.length === 0) return;
 
-            conn.send({ type: 'text_memo', text: text, sender: '發送端' });
+            // 發送給所有人
+            broadcast({ type: 'text_memo', text: text, sender: '發送端 (房主)' });
             addMemoToBoard('自著便箋 (您)', text);
             textarea.value = '';
         }
@@ -859,21 +905,36 @@
             board.insertBefore(memoItem, board.firstChild);
         }
 
-        // --- Receiver Logic: Assembly & Auto Sequential Processing ---
-        function handleIncomingData(data) {
+        // --- Protocol Logic: Assembly, Resume, Chunk Deduplication ---
+        function handleIncomingData(data, connection) {
             // [發送端邏輯] 接收端的斷點續傳請求
             if (role === 'sender' && data.type === 'request_resume') {
-                currentOffset = data.offset;
-                transferStartTime = Date.now();
-                lastReportTime = Date.now();
-                lastReportedSize = data.offset;
-                updateProgressUI(currentOffset, fileToSend.size);
-                sendNextChunk(currentOffset);
+                // 如果有接收方要求退回某個斷點，發送方配合退回
+                // 其他一直連線的接收方會靠 `offset` 比對忽略重複的區塊
+                if (data.offset < currentOffset || currentOffset === 0) {
+                    currentOffset = data.offset;
+                    transferStartTime = Date.now();
+                    lastReportTime = Date.now();
+                    lastReportedSize = data.offset;
+                    updateProgressUI(currentOffset, fileToSend.size);
+                    sendNextChunk(currentOffset);
+                }
                 return;
             }
 
             if (data.type === 'text_memo') {
-                addMemoToBoard('他處寄來 (對方)', data.text);
+                const senderName = role === 'sender' ? `參與者 (${connection.peer.substring(0,4)})` : '房主廣播';
+                addMemoToBoard(senderName, data.text);
+                
+                // 身為房主，幫忙轉發便箋給房間內「其他人」
+                if (role === 'sender') {
+                    connections.forEach(c => {
+                        if (c !== connection && c.open) {
+                            c.send({ type: 'text_memo', text: data.text, sender: senderName });
+                        }
+                    });
+                }
+                
                 const memoTabBtn = document.getElementById('tab-btn-memo');
                 if (memoTabBtn.classList.contains('text-sub-ink')) {
                     memoTabBtn.classList.add('animate-bounce', 'text-matcha');
@@ -898,7 +959,6 @@
             }
 
             if (data.type === 'batch_start') {
-                // 若正在斷線續傳中，且傳來的文卷與中斷的文卷相符，則保留緩衝區
                 const firstFile = data.files[0];
                 const isResuming = receiveBuffer.length > 0 && fileMetadata && firstFile && firstFile.name === fileMetadata.name && firstFile.size === fileMetadata.size;
 
@@ -916,13 +976,11 @@
                 const icon = `<svg class="w-4 h-4 sm:w-5 sm:h-5 animate-bounce text-matcha" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>`;
 
                 if (isResuming) {
-                    // [斷點續傳分支] 向發送端請求從斷點位移發送
                     currentFileIndex = data.index;
                     document.getElementById('transfer-title').innerHTML = `${icon} 續傳進行中 (${currentFileIndex + 1}/${fileQueue.length})`;
                     renderQueueList();
-                    conn.send({ type: 'request_resume', offset: receivedSize });
+                    connection.send({ type: 'request_resume', offset: receivedSize });
                 } else {
-                    // [全新傳輸分支] 請求從 0 開始
                     fileMetadata = data;
                     receiveBuffer = [];
                     receivedSize = 0;
@@ -937,13 +995,18 @@
                     document.getElementById('transfer-eta').innerText = '剩餘時間：預估中...';
 
                     renderQueueList();
-                    conn.send({ type: 'request_resume', offset: 0 }); 
+                    connection.send({ type: 'request_resume', offset: 0 }); 
                 }
 
             } else if (data.type === 'chunk') {
-                receiveBuffer.push(data.data);
-                receivedSize += data.data.byteLength;
-                updateProgressUI(receivedSize, fileMetadata.size);
+                // 【進階 Chunk Deduplication 防腐敗保護】
+                // 發送方可能為了其他剛加入的接收者倒退 offset，
+                // 這邊利用 offset 比對，只有等於自己當前進度的 Chunk 才接受，避免檔案附加重複資料而損壞。
+                if (data.offset === receivedSize) {
+                    receiveBuffer.push(data.data);
+                    receivedSize += data.data.byteLength;
+                    updateProgressUI(receivedSize, fileMetadata.size);
+                }
 
             } else if (data.type === 'file_eof') {
                 const blob = new Blob(receiveBuffer, { type: fileMetadata.mime });
@@ -1067,7 +1130,11 @@
         function showSuccess(msg) {
             showView('view-success');
             document.getElementById('success-message').innerText = msg;
-            updateStatus('傳輸完成', '#6B775A'); 
+            if (role === 'sender') {
+                updateStatus(`廣播完成 (${connections.length}人)`, '#6B775A'); 
+            } else {
+                updateStatus('傳輸完成', '#6B775A');
+            }
             document.getElementById('transfer-controls').classList.add('hidden'); // 隱藏按鈕
         }
 
@@ -1097,16 +1164,16 @@
             // 重置暫停按鈕 UI
             const btn = document.getElementById('btn-pause-resume');
             if(btn) {
-                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>暫停傳輸</span>`;
+                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>暫停廣播</span>`;
                 btn.classList.remove('text-matcha', 'border-matcha', 'bg-[#F4F0EA]');
                 btn.classList.add('text-sub-ink', 'border-[#E6E2D8]', 'bg-white');
             }
         }
 
         function resetApp() {
-            if (conn) {
-                conn.close();
-                conn = null;
+            if (connections && connections.length > 0) {
+                connections.forEach(c => c.close());
+                connections = [];
             }
             if (peer) {
                 peer.destroy();
