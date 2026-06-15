@@ -401,8 +401,9 @@
         let fileMetadata = null;  // 接收端當前檔案 metadata
         
         // --- Pause & Resume Metrics ---
-        let isPaused = false;     // 發送端暫停狀態
-        let currentOffset = 0;    // 發送端當前斷點位移量
+        let isPaused = false;       // 發送端暫停狀態
+        let currentOffset = 0;      // 發送端當前斷點位移量
+        let isTransmitting = false; // [新增] 發送端正在傳輸鎖定，防止多重廣播迴圈
         
         // --- Speed & ETA Metrics ---
         let transferStartTime = 0;
@@ -759,6 +760,7 @@
             fileToSend = fileQueue[index];
             currentOffset = 0;
             isPaused = false;
+            isTransmitting = false; // [新增] 初始化狀態鎖
             
             showView('view-transferring');
             
@@ -808,16 +810,21 @@
                 updateStatus(`廣播進行中 (${connections.length}人)`, '#6B775A');
                 
                 broadcast({ type: 'transfer_resumed' });
-                sendNextChunk(currentOffset);
+                
+                if (!isTransmitting) {
+                    isTransmitting = true;
+                }
+                sendNextChunk();
             }
         }
 
-        function sendNextChunk(offset) {
-            currentOffset = offset;
+        // [修正] 取消接收 offset 參數，統一依照全域 currentOffset，杜絕分支迴圈
+        function sendNextChunk() {
+            // 確認狀態鎖
+            if (isPaused || connections.length === 0 || !isTransmitting) return;
             
-            if (isPaused || connections.length === 0) return;
-            
-            if (offset >= fileToSend.size) {
+            if (currentOffset >= fileToSend.size) {
+                isTransmitting = false; // 傳輸結束，解除狀態鎖
                 broadcast({ type: 'file_eof', index: currentFileIndex });
                 if (currentFileIndex + 1 < fileQueue.length) {
                     setTimeout(() => { startFileTransmission(currentFileIndex + 1); }, 100); 
@@ -835,17 +842,26 @@
             });
             
             if (bufferFull) { 
-                setTimeout(() => sendNextChunk(offset), 20);
+                setTimeout(() => sendNextChunk(), 20);
                 return;
             }
 
-            const chunk = fileToSend.slice(offset, offset + CHUNK_SIZE);
+            const chunkOffset = currentOffset;
+            const chunk = fileToSend.slice(chunkOffset, chunkOffset + CHUNK_SIZE);
+            
             chunk.arrayBuffer().then(buffer => {
+                // 【防重疊保護】如果在讀取檔案期間，currentOffset 被 request_resume 修改（例如有人中途加入被退回 0）
+                // 我們就放棄這次舊進度的廣播，直接呼叫 sendNextChunk 重新抓取新進度
+                if (currentOffset !== chunkOffset) {
+                    sendNextChunk(); 
+                    return;
+                }
+
                 // 將 offset 一併發送，供接收端判斷是否為重複資料 (Chunk Deduplication 防腐敗機制)
-                broadcast({ type: 'chunk', data: buffer, offset: offset });
-                const newOffset = offset + CHUNK_SIZE;
-                updateProgressUI(Math.min(newOffset, fileToSend.size), fileToSend.size);
-                sendNextChunk(newOffset);
+                broadcast({ type: 'chunk', data: buffer, offset: chunkOffset });
+                currentOffset += CHUNK_SIZE;
+                updateProgressUI(Math.min(currentOffset, fileToSend.size), fileToSend.size);
+                sendNextChunk();
             });
         }
 
@@ -917,7 +933,12 @@
                     lastReportTime = Date.now();
                     lastReportedSize = data.offset;
                     updateProgressUI(currentOffset, fileToSend.size);
-                    sendNextChunk(currentOffset);
+                    
+                    // [修正] 只有當不在傳輸中時，才啟動單一迴圈，防止並行迴圈
+                    if (!isTransmitting) {
+                        isTransmitting = true;
+                        sendNextChunk();
+                    }
                 }
                 return;
             }
@@ -1009,6 +1030,10 @@
                 }
 
             } else if (data.type === 'file_eof') {
+                
+                // [防呆機制] 避免收到多重廣播 EOF 時重複推送產生重複檔案
+                if (receivedFilesList.length > currentFileIndex) return;
+
                 const blob = new Blob(receiveBuffer, { type: fileMetadata.mime });
                 const blobUrl = URL.createObjectURL(blob);
                 
@@ -1153,6 +1178,7 @@
             receivedFilesList = [];
             isPaused = false;
             currentOffset = 0;
+            isTransmitting = false; // [新增] 解除傳輸鎖
             
             document.getElementById('transfer-progress').value = 0;
             document.getElementById('progress-percentage').innerText = '0%';
