@@ -322,25 +322,40 @@
             傳輸進行中
         </h2>
         
-        <div class="bg-white border border-[#E6E2D8] p-3 sm:p-4 mb-4 flex items-center gap-3 sm:gap-4 shadow-sm">
-            <div class="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-[#F3EFE7] flex items-center justify-center text-xl sm:text-2xl border border-[#E6E2D8]">📄</div>
-            <div class="flex-grow overflow-hidden min-w-0">
-                <p class="text-xs sm:text-sm font-bold text-ink truncate font-sans" id="file-name-display">準備中...</p>
-                <div class="flex justify-between items-center mt-1">
-                    <span class="text-[10px] sm:text-xs text-sub-ink font-sans" id="file-size-display">0 MB</span>
-                    <span class="text-[10px] sm:text-xs font-bold text-matcha tracking-widest" id="file-index-indicator">文卷 1/1</span>
-                </div>
+        <div id="receiver-accept-ui" class="hidden flex-col items-center bg-[#FAFAFA] border border-[#E6E2D8] p-4 sm:p-5 mb-4 rounded-sm shadow-sm w-full">
+            <p class="text-sm font-bold text-ink mb-1 tracking-widest" id="accept-ui-title">等待同意接收</p>
+            <p class="text-[10px] sm:text-xs text-sub-ink mb-4 text-center">使用「寫入硬碟」模式可突破記憶體限制，安全接收 GB 級極大檔案。</p>
+            <div class="flex flex-col sm:flex-row gap-2.5 w-full">
+                <button id="btn-accept-disk" class="flex-1 py-2.5 bg-matcha hover:bg-[#5A634D] text-white text-xs font-bold rounded-sm shadow-sm tracking-widest transition-colors flex items-center justify-center gap-2">
+                    💾 選擇儲存位置並接收
+                </button>
+                <button id="btn-accept-ram" class="flex-1 py-2.5 bg-white border border-[#E6E2D8] hover:bg-[#F3EFE7] text-sub-ink text-xs font-bold rounded-sm shadow-sm tracking-widest transition-colors flex items-center justify-center gap-2">
+                    ⚡ 使用記憶體暫存
+                </button>
             </div>
         </div>
 
-        <div class="space-y-1 mb-2">
-            <div class="flex justify-between text-[10px] sm:text-xs text-sub-ink font-sans">
-                <span id="progress-percentage">0%</span>
-                <span id="transfer-speed">計算中...</span>
+        <div id="progress-container" class="w-full">
+            <div class="bg-white border border-[#E6E2D8] p-3 sm:p-4 mb-4 flex items-center gap-3 sm:gap-4 shadow-sm">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-[#F3EFE7] flex items-center justify-center text-xl sm:text-2xl border border-[#E6E2D8]">📄</div>
+                <div class="flex-grow overflow-hidden min-w-0">
+                    <p class="text-xs sm:text-sm font-bold text-ink truncate font-sans" id="file-name-display">準備中...</p>
+                    <div class="flex justify-between items-center mt-1">
+                        <span class="text-[10px] sm:text-xs text-sub-ink font-sans" id="file-size-display">0 MB</span>
+                        <span class="text-[10px] sm:text-xs font-bold text-matcha tracking-widest" id="file-index-indicator">文卷 1/1</span>
+                    </div>
+                </div>
             </div>
-            <progress id="transfer-progress" value="0" max="100" class="w-full h-1.5 sm:h-2"></progress>
-            <div class="flex justify-end mt-1">
-                <span id="transfer-eta" class="text-[9px] sm:text-[10px] text-matcha font-bold tracking-widest">剩餘時間：預估中...</span>
+
+            <div class="space-y-1 mb-2">
+                <div class="flex justify-between text-[10px] sm:text-xs text-sub-ink font-sans">
+                    <span id="progress-percentage">0%</span>
+                    <span id="transfer-speed">計算中...</span>
+                </div>
+                <progress id="transfer-progress" value="0" max="100" class="w-full h-1.5 sm:h-2"></progress>
+                <div class="flex justify-end mt-1">
+                    <span id="transfer-eta" class="text-[9px] sm:text-[10px] text-matcha font-bold tracking-widest">剩餘時間：預估中...</span>
+                </div>
             </div>
         </div>
 
@@ -424,7 +439,9 @@
     let html5QrcodeScanner = null;
 
     // --- Multi-File Queue Transfer State ---
-    const CHUNK_SIZE = 16384; 
+    let currentChunkSize = 16384; 
+    const MIN_CHUNK_SIZE = 16384; // 16KB
+    const MAX_CHUNK_SIZE = 262144; // 256KB
     let fileQueue = [];       
     let currentFileIndex = 0; 
     
@@ -434,6 +451,12 @@
     let receivedSize = 0;     
     let fileMetadata = null;  
     
+    // --- File System API State (Large File Streaming) ---
+    let useFileSystemApi = false;
+    let dirHandle = null;
+    let fileStream = null;
+    let writePromise = Promise.resolve();
+
     // --- Pause & Resume Metrics ---
     let isPaused = false;       
     let currentOffset = 0;      
@@ -554,12 +577,6 @@
                 resolve([]);
             }
         });
-    }
-
-    function handleDropZoneClick(e) {
-        if (!e.target.closest('button')) {
-            document.getElementById('file-upload').click();
-        }
     }
 
     function setupDragAndDrop() {
@@ -971,23 +988,32 @@
                 setTimeout(() => { startFileTransmission(currentFileIndex + 1); }, 100); 
             } else {
                 broadcast({ type: 'batch_eof' });
-                showSuccess(`所有文卷已成功送出給 ${connections.length} 位參與者！(共 ${fileQueue.length} 個)`);
             }
             return;
         }
 
         let bufferFull = false;
+        let totalBuffered = 0;
         connections.forEach(c => {
-            if (c.dataChannel && c.dataChannel.bufferedAmount > 16384 * 64) bufferFull = true;
+            if (c.dataChannel) {
+                totalBuffered += c.dataChannel.bufferedAmount;
+                // 若緩衝區堆積過多，視為塞車
+                if (c.dataChannel.bufferedAmount > currentChunkSize * 16) bufferFull = true;
+            }
         });
         
         if (bufferFull) { 
+            // 降速：縮小區塊並延長等待
+            currentChunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(currentChunkSize * 0.9));
             setTimeout(() => sendNextChunk(), 20);
             return;
+        } else if (totalBuffered < currentChunkSize * 2) {
+            // 提速：網路順暢時放大區塊以提高吞吐量
+            currentChunkSize = Math.min(MAX_CHUNK_SIZE, Math.floor(currentChunkSize * 1.2));
         }
 
         const chunkOffset = currentOffset;
-        const chunk = fileToSend.slice(chunkOffset, chunkOffset + CHUNK_SIZE);
+        const chunk = fileToSend.slice(chunkOffset, chunkOffset + currentChunkSize);
         
         chunk.arrayBuffer().then(buffer => {
             if (currentOffset !== chunkOffset) {
@@ -996,7 +1022,7 @@
             }
 
             broadcast({ type: 'chunk', data: buffer, offset: chunkOffset });
-            currentOffset += CHUNK_SIZE;
+            currentOffset += buffer.byteLength;
             updateProgressUI(Math.min(currentOffset, fileToSend.size), fileToSend.size);
             sendNextChunk();
         });
@@ -1146,32 +1172,56 @@
                 document.getElementById('transfer-eta').innerText = '剩餘時間：預估中...';
 
                 renderQueueList();
-                connection.send({ type: 'request_resume', offset: 0 }); 
+                
+                if (role === 'receiver') {
+                    handleReceiverNewFile(connection);
+                }
             }
 
         } else if (data.type === 'chunk') {
             if (data.offset === receivedSize) {
-                receiveBuffer.push(data.data);
-                receivedSize += data.data.byteLength;
-                updateProgressUI(receivedSize, fileMetadata.size);
+                if (useFileSystemApi && fileStream) {
+                    // 串流依序寫入硬碟 (Promise chain 保證順序)
+                    writePromise = writePromise.then(async () => {
+                        await fileStream.write(data.data);
+                        receivedSize += data.data.byteLength;
+                        updateProgressUI(receivedSize, fileMetadata.size);
+                    }).catch(e => console.error("Write error:", e));
+                } else {
+                    // 傳統記憶體暫存
+                    receiveBuffer.push(data.data);
+                    receivedSize += data.data.byteLength;
+                    updateProgressUI(receivedSize, fileMetadata.size);
+                }
             }
 
         } else if (data.type === 'file_eof') {
             if (receivedFilesList.length > currentFileIndex) return;
 
-            const blob = new Blob(receiveBuffer, { type: fileMetadata.mime });
-            const blobUrl = URL.createObjectURL(blob);
-            
-            receivedFilesList.push({ name: fileMetadata.name, url: blobUrl, blob: blob });
+            if (useFileSystemApi && fileStream) {
+                writePromise = writePromise.then(async () => {
+                    await fileStream.close();
+                    fileStream = null;
+                    receivedFilesList.push({ name: fileMetadata.name, savedToDisk: true });
+                }).catch(e => console.error("Close error:", e));
+            } else {
+                const blob = new Blob(receiveBuffer, { type: fileMetadata.mime });
+                const blobUrl = URL.createObjectURL(blob);
+                
+                receivedFilesList.push({ name: fileMetadata.name, url: blobUrl, blob: blob });
 
-            if (fileQueue.length === 1) {
-                triggerDownload(blobUrl, sanitizeFileName(fileMetadata.name));
+                if (fileQueue.length === 1) {
+                    triggerDownload(blobUrl, sanitizeFileName(fileMetadata.name));
+                }
             }
 
         } else if (data.type === 'batch_eof') {
-            showSuccess(`文卷傳輸完成！(共 ${fileQueue.length} 個)`);
-            document.getElementById('download-action-container').classList.remove('hidden');
-            renderSuccessFilesList();
+            // 確保所有硬碟寫入任務完成後，才顯示成功畫面
+            writePromise.then(() => {
+                showSuccess(`文卷傳輸完成！(共 ${fileQueue.length} 個)`);
+                document.getElementById('download-action-container').classList.remove('hidden');
+                renderSuccessFilesList();
+            });
         }
     }
 
@@ -1200,19 +1250,25 @@
             nameSpan.innerText = file.name;
 
             const btn = document.createElement('button');
-            btn.className = "px-2.5 py-1 bg-matcha hover:bg-[#5A634D] text-[#F3EFE7] text-[11px] font-bold tracking-widest rounded-sm transition-colors";
-            btn.innerText = "儲存";
-
-            btn.onclick = () => {
-                triggerDownload(file.url, sanitizeFileName(file.name));
-                if (isBurnAfterReading) {
-                    setTimeout(() => URL.revokeObjectURL(file.url), 1000);
-                    btn.disabled = true;
-                    btn.innerText = '已銷毀';
-                    btn.className = "px-2.5 py-1 bg-[#E6E2D8] text-sub-ink text-[11px] font-bold tracking-widest rounded-sm cursor-not-allowed";
-                    file.burned = true;
-                }
-            };
+            
+            if (file.savedToDisk) {
+                btn.className = "px-2.5 py-1 bg-[#E6E2D8] text-sub-ink text-[11px] font-bold tracking-widest rounded-sm cursor-not-allowed";
+                btn.innerText = "已寫入磁碟";
+                btn.disabled = true;
+            } else {
+                btn.className = "px-2.5 py-1 bg-matcha hover:bg-[#5A634D] text-[#F3EFE7] text-[11px] font-bold tracking-widest rounded-sm transition-colors";
+                btn.innerText = "儲存";
+                btn.onclick = () => {
+                    triggerDownload(file.url, sanitizeFileName(file.name));
+                    if (isBurnAfterReading) {
+                        setTimeout(() => URL.revokeObjectURL(file.url), 1000);
+                        btn.disabled = true;
+                        btn.innerText = '已銷毀';
+                        btn.className = "px-2.5 py-1 bg-[#E6E2D8] text-sub-ink text-[11px] font-bold tracking-widest rounded-sm cursor-not-allowed";
+                        file.burned = true;
+                    }
+                };
+            }
 
             item.appendChild(nameSpan);
             item.appendChild(btn);
@@ -1220,7 +1276,9 @@
         });
 
         const zipBtn = document.getElementById('btn-download-zip');
-        if (receivedFilesList.length > 1) {
+        const anySavedToDisk = receivedFilesList.some(f => f.savedToDisk);
+        
+        if (receivedFilesList.length > 1 && !anySavedToDisk) {
             zipBtn.classList.remove('hidden');
             zipBtn.onclick = handleZipDownload;
         } else {
@@ -1229,7 +1287,7 @@
 
         document.getElementById('btn-download-all').onclick = () => {
             receivedFilesList.forEach(file => { 
-                if (!file.burned) triggerDownload(file.url, sanitizeFileName(file.name)); 
+                if (!file.burned && !file.savedToDisk) triggerDownload(file.url, sanitizeFileName(file.name)); 
             });
             if (isBurnAfterReading) burnAll();
         };
@@ -1369,6 +1427,15 @@
         isTransmitting = false;
         isBurnAfterReading = false;
         
+        useFileSystemApi = false;
+        dirHandle = null;
+        if (fileStream) {
+            try { fileStream.close(); } catch(e){}
+            fileStream = null;
+        }
+        writePromise = Promise.resolve();
+        currentChunkSize = MIN_CHUNK_SIZE;
+        
         document.getElementById('transfer-progress').value = 0;
         document.getElementById('progress-percentage').innerText = '0%';
         document.getElementById('transfer-eta').innerText = '剩餘時間：預估中...';
@@ -1422,6 +1489,91 @@
 
         updateStatus('系統待命', '#A39F98'); 
         showView('view-home');
+    }
+
+    async function handleReceiverNewFile(connection) {
+        // 如果已經選擇了目錄，自動建立檔案並續傳 (無縫接軌多個檔案)
+        if (useFileSystemApi && dirHandle) {
+            try {
+                const fileHandle = await getFileHandleFromPath(dirHandle, fileMetadata.name);
+                fileStream = await fileHandle.createWritable();
+                receivedSize = 0;
+                connection.send({ type: 'request_resume', offset: 0 });
+                return;
+            } catch (e) {
+                console.error("Auto create file failed", e);
+                showToast("建立檔案失敗，退回記憶體模式", "error");
+                useFileSystemApi = false;
+            }
+        }
+
+        // 偵測是否支援硬碟儲存且不為閱後即焚
+        if (!isBurnAfterReading && (window.showSaveFilePicker || window.showDirectoryPicker)) {
+            document.getElementById('receiver-accept-ui').classList.remove('hidden');
+            document.getElementById('receiver-accept-ui').classList.add('flex');
+            document.getElementById('progress-container').classList.add('hidden');
+
+            const btnDisk = document.getElementById('btn-accept-disk');
+            const btnRam = document.getElementById('btn-accept-ram');
+
+            if (fileQueue.length > 1 && window.showDirectoryPicker) {
+                btnDisk.innerHTML = '💾 選擇「資料夾」並接收全部';
+            } else if (window.showSaveFilePicker) {
+                btnDisk.innerHTML = '💾 選擇「儲存位置」並接收';
+            } else {
+                btnDisk.classList.add('hidden'); 
+            }
+
+            btnDisk.onclick = async () => {
+                try {
+                    if (fileQueue.length > 1 && window.showDirectoryPicker) {
+                        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                        const fileHandle = await getFileHandleFromPath(dirHandle, fileMetadata.name);
+                        fileStream = await fileHandle.createWritable();
+                    } else if (window.showSaveFilePicker) {
+                        const options = { suggestedName: fileMetadata.name.split('/').pop() };
+                        const fileHandle = await window.showSaveFilePicker(options);
+                        fileStream = await fileHandle.createWritable();
+                    }
+                    useFileSystemApi = true;
+                    startReceiving(connection);
+                } catch (e) {
+                    if (e.name !== 'AbortError') {
+                        showToast("儲存位置選擇失敗: " + e.message, "error");
+                    }
+                }
+            };
+
+            btnRam.onclick = () => {
+                useFileSystemApi = false;
+                startReceiving(connection);
+            };
+        } else {
+            useFileSystemApi = false;
+            startReceiving(connection);
+        }
+    }
+
+    function startReceiving(connection) {
+        document.getElementById('receiver-accept-ui').classList.add('hidden');
+        document.getElementById('receiver-accept-ui').classList.remove('flex');
+        document.getElementById('progress-container').classList.remove('hidden');
+
+        if (!useFileSystemApi) receiveBuffer = [];
+        receivedSize = 0;
+        connection.send({ type: 'request_resume', offset: 0 });
+    }
+
+    // 支援包含資料夾結構的深度路徑建立
+    async function getFileHandleFromPath(dirHandle, path) {
+        const parts = path.split('/');
+        const filename = parts.pop();
+        let currentDir = dirHandle;
+        for (const part of parts) {
+            if (part === '') continue;
+            currentDir = await currentDir.getDirectoryHandle(part, { create: true });
+        }
+        return await currentDir.getFileHandle(filename, { create: true });
     }
 </script>
 </body>
